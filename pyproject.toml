@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "sql-sp-harness"
-version = "1.0.0"
+dynamic = ["version"]
 description = "Generate safe T-SQL stored-procedure debug harness scripts (analyze + DML previews)"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = "MIT"
@@ -54,6 +54,9 @@ sp-harness = "sql_sp_harness.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.dynamic]
+version = { attr = "sql_sp_harness.__version__" }
 
 [tool.setuptools]
 include-package-data = false
