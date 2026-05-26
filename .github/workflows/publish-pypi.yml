@@ -14,9 +14,15 @@ name: Publish to PyPI
 
 on:
   pull_request:
+    paths-ignore:
+      - "README.md"
+      - "docs/**"
   push:
     branches: [master, main, release]
     tags: ["v*"]
+    paths-ignore:
+      - "README.md"
+      - "docs/**"
   workflow_dispatch:
     inputs:
       target:
