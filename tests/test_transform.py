@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-from mssql_sp_harness.transform import transform_sql
+from sql_sp_harness.transform import transform_sql
 
 SAMPLES = Path(__file__).parents[1] / "samples"
 

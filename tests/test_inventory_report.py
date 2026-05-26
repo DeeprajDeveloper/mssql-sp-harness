@@ -1,6 +1,6 @@
 """Tests for inventory report formatting."""
 
-from mssql_sp_harness.inventory import InventoryReport
+from sql_sp_harness.inventory import InventoryReport
 
 
 def test_to_text_non_zero_only_hides_zeros():

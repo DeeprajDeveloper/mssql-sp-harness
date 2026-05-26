@@ -12,7 +12,7 @@ import sqlglot
 from sqlglot import exp
 from sqlglot.errors import ParseError
 
-from mssql_sp_harness.t_sql_scan import TsqlScanResult, scan_tsql
+from sql_sp_harness.t_sql_scan import TsqlScanResult, scan_tsql
 
 SQLGLOT_LOGGER = logging.getLogger("sqlglot")
 
@@ -39,7 +39,7 @@ def suppress_sqlglot_warnings():
     """Silence sqlglot's 'unsupported syntax' logger noise during parse.
 
     sqlglot logs a warning for each TRY/CATCH (and similar) fragment it stores as
-    exp.Command. That is expected for enterprise T-SQL; mssql-sp-harness uses text scan
+    exp.Command. That is expected for enterprise T-SQL; sql-sp-harness uses text scan
     to supplement the AST. Set SP_DEBUG_VERBOSE=1 to leave warnings visible.
     """
     if os.environ.get("SP_DEBUG_VERBOSE"):

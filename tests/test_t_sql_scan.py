@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from mssql_sp_harness.t_sql_scan import scan_tsql
-from mssql_sp_harness.inventory import inventory_from_sql
+from sql_sp_harness.t_sql_scan import scan_tsql
+from sql_sp_harness.inventory import inventory_from_sql
 
 SAMPLES = Path(__file__).parents[1] / "samples"
 

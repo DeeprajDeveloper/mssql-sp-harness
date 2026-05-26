@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build and upload mssql-sp-harness to PyPI.
+# Build and upload sql-sp-harness to PyPI.
 #
 # Usage:
 #   ./scripts/publish-pypi.sh

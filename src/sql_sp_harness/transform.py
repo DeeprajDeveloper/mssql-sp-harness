@@ -8,8 +8,8 @@ from dataclasses import dataclass, field
 
 from sqlglot import exp
 
-from mssql_sp_harness.dml_preview import build_dml_preview
-from mssql_sp_harness.parse import parse_for_transform, suppress_sqlglot_warnings
+from sql_sp_harness.dml_preview import build_dml_preview
+from sql_sp_harness.parse import parse_for_transform, suppress_sqlglot_warnings
 
 DML_START = re.compile(
     r"^\s*(INSERT|UPDATE|DELETE|MERGE)\b",
@@ -276,7 +276,7 @@ def transform_sql(
     stats.traces_added = line_stats.traces_added
     stats.warnings.extend(line_stats.warnings)
 
-    from mssql_sp_harness.emit import debug_banner
+    from sql_sp_harness.emit import debug_banner
 
     _emit_progress(on_progress, "Writing debug harness banner...")
     body = "\n".join(lines)

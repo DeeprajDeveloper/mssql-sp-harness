@@ -3,16 +3,16 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mssql-sp-harness"
+name = "sql-sp-harness"
 version = "1.0.0"
-description = "Generate safe MSSQL stored-procedure debug harness scripts (inventory + DML previews)"
+description = "Generate safe T-SQL stored-procedure debug harness scripts (analyze + DML previews)"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [{ name = "Deepraj Adhikary" }]
 keywords = [
-  "mssql",
+  "sql",
   "sql-server",
   "t-sql",
   "stored-procedure",
@@ -38,19 +38,19 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/DeeprajDeveloper/mssql-sp-harness"
-Documentation = "https://github.com/DeeprajDeveloper/mssql-sp-harness#readme"
-Repository = "https://github.com/DeeprajDeveloper/mssql-sp-harness"
-Issues = "https://github.com/DeeprajDeveloper/mssql-sp-harness/issues"
-Changelog = "https://github.com/DeeprajDeveloper/mssql-sp-harness/releases"
+Homepage = "https://github.com/DeeprajDeveloper/sql-sp-harness"
+Documentation = "https://github.com/DeeprajDeveloper/sql-sp-harness#readme"
+Repository = "https://github.com/DeeprajDeveloper/sql-sp-harness"
+Issues = "https://github.com/DeeprajDeveloper/sql-sp-harness/issues"
+Changelog = "https://github.com/DeeprajDeveloper/sql-sp-harness/releases"
 Extension = "https://github.com/DeeprajDeveloper/mssql-sp-debug-scripter"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0.0", "build>=1.0.0", "twine>=5.0.0"]
 
 [project.scripts]
-mssql-sp-harness = "mssql_sp_harness.cli:app"
-sp-harness = "mssql_sp_harness.cli:app"
+sql-sp-harness = "sql_sp_harness.cli:app"
+sp-harness = "sql_sp_harness.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]

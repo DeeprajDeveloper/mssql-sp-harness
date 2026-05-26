@@ -1,4 +1,4 @@
-"""CLI for mssql-sp-harness."""
+"""CLI for sql-sp-harness."""
 
 from __future__ import annotations
 
@@ -8,13 +8,13 @@ from typing import Optional
 
 import typer
 
-from mssql_sp_harness import __version__
-from mssql_sp_harness.console import supports_color
-from mssql_sp_harness.inventory import inventory_from_sql
-from mssql_sp_harness.transform import transform_sql
+from sql_sp_harness import __version__
+from sql_sp_harness.console import supports_color
+from sql_sp_harness.inventory import inventory_from_sql
+from sql_sp_harness.transform import transform_sql
 
 APP_HELP = """
-Turn MSSQL stored procedures into safe, runnable debug scripts.
+Turn T-SQL stored procedures into safe, runnable debug scripts.
 
 \b
 Commands:
@@ -23,17 +23,17 @@ Commands:
 
 \b
 Quick start:
-  mssql-sp-harness analyze -i MyProc.sql
-  mssql-sp-harness generate -i MyProc.sql -o MyProc_debug.sql
+  sql-sp-harness analyze -i MyProc.sql
+  sql-sp-harness generate -i MyProc.sql -o MyProc_debug.sql
 
 \b
 More help:
-  mssql-sp-harness analyze --help
-  mssql-sp-harness generate --help
+  sql-sp-harness analyze --help
+  sql-sp-harness generate --help
 """
 
 app = typer.Typer(
-    name="mssql-sp-harness",
+    name="sql-sp-harness",
     help=APP_HELP,
     no_args_is_help=True,
     add_completion=False,
@@ -50,7 +50,7 @@ def _version() -> str:
     try:
         from importlib.metadata import version
 
-        return version("mssql-sp-harness")
+        return version("sql-sp-harness")
     except Exception:
         return __version__
 
@@ -66,9 +66,9 @@ def _root_callback(
         is_eager=True,
     ),
 ) -> None:
-    """MSSQL stored procedure debug harness generator."""
+    """T-SQL stored procedure debug harness generator."""
     if version:
-        typer.echo(f"mssql-sp-harness {_version()}")
+        typer.echo(f"sql-sp-harness {_version()}")
         raise typer.Exit()
 
 

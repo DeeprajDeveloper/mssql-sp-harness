@@ -9,9 +9,9 @@ from typing import Iterator
 
 from sqlglot import exp
 
-from mssql_sp_harness.console import failure, heading, success, warning
-from mssql_sp_harness.parse import ParseResult, parse_sql, root_tree
-from mssql_sp_harness.t_sql_scan import TsqlScanResult, scan_tsql
+from sql_sp_harness.console import failure, heading, success, warning
+from sql_sp_harness.parse import ParseResult, parse_sql, root_tree
+from sql_sp_harness.t_sql_scan import TsqlScanResult, scan_tsql
 
 COUNT_SECTIONS: tuple[tuple[str, str], ...] = (
     ("INSERT", "insert"),
