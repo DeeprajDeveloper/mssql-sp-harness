@@ -34,18 +34,34 @@ Local publish (optional):
 | Branch push | `python -m build`, `twine check`, upload to **TestPyPI** (`skip-existing: true`) |
 | Tag `v*` push | Same build artifacts → **PyPI** |
 
-Configure [Trusted Publishing](https://docs.pypi.org/trusted-publishers/) on **both** indexes:
+Configure [Trusted Publishing](https://docs.pypi.org/trusted-publishers/) on **both** indexes (they are separate accounts/sites):
 
-| Index | Environment | Workflow file |
-|-------|-------------|---------------|
-| [PyPI](https://pypi.org/manage/account/publishing/) | `pypi` | `publish-pypi.yml` |
-| [TestPyPI](https://test.pypi.org/manage/account/publishing/) | `testpypi` | `publish-pypi.yml` |
+| Field | PyPI | TestPyPI |
+|-------|------|----------|
+| Add publisher at | [pypi.org/.../publishing](https://pypi.org/manage/account/publishing/) | [test.pypi.org/.../publishing](https://test.pypi.org/manage/account/publishing/) |
+| Project name | `sql-sp-harness` | `sql-sp-harness` |
+| Owner | `DeeprajDeveloper` | `DeeprajDeveloper` |
+| Repository | `sql-sp-harness` | `sql-sp-harness` |
+| Workflow filename | `publish-pypi.yml` | `publish-pypi.yml` |
+| Environment name | `pypi` | `testpypi` |
 
-Create matching `pypi` and `testpypi` environments under GitHub **Settings → Environments**. PyPA recommends **required reviewers** on the `pypi` environment.
+Then create matching GitHub environments: repo **Settings → Environments** → add `pypi` and `testpypi` (names must match exactly). PyPA recommends **required reviewers** on `pypi` only.
 
 Manual dry-run: **Actions → Publish to PyPI → Run workflow** → choose `testpypi` or `pypi`.
 
 Never commit PyPI credentials; use trusted publishing or local `TWINE_*` env vars only.
+
+#### Troubleshooting `invalid-publisher`
+
+If **Publish to TestPyPI** fails with `valid token, but no corresponding publisher`, the workflow is fine — TestPyPI has no matching trusted publisher yet. Fix:
+
+1. Sign in at [test.pypi.org](https://test.pypi.org/) (not pypi.org).
+2. Open [Account → Publishing](https://test.pypi.org/manage/account/publishing/) → **Add a new pending publisher**.
+3. Enter the table above; **Environment name** must be `testpypi` (not `pypi`).
+4. Confirm the GitHub environment `testpypi` exists under repo Settings → Environments.
+5. Re-run the workflow.
+
+For production PyPI, repeat on [pypi.org](https://pypi.org/manage/account/publishing/) with environment `pypi`.
 
 ## Packaging notes
 
