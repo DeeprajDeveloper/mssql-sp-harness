@@ -1,6 +1,6 @@
 <p align="center">
   <img
-    src="https://raw.githubusercontent.com/DeeprajDeveloper/mssql-sp-harness/master/docs/logo.png"
+    src="https://raw.githubusercontent.com/DeeprajDeveloper/mssql-sp-harness/master/docs/logo_transparent.png"
     alt="mssql-sp-harness"
     width="220"
   >
