@@ -2,7 +2,6 @@
   <img
     src="https://raw.githubusercontent.com/DeeprajDeveloper/sql-sp-harness/master/docs/BANNER.png"
     alt="sql-sp-harness"
-    width="220"
   >
 </p>
 
