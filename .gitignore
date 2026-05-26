@@ -1,0 +1,52 @@
+# Build / packaging (never commit release artifacts)
+dist/
+build/
+*.egg-info/
+.eggs/
+*.egg
+pip-wheel-metadata/
+*.whl
+*.tar.gz
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Test / coverage / type checkers
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+
+# IDE / editor / OS
+.idea/
+.vscode/
+.cursor/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# PyPI / secrets / local config
+.pypirc
+*.pem
+secrets.*
+
+# Logs and temp files
+*.log
+*.tmp
+.cache/
