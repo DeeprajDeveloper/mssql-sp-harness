@@ -6,7 +6,7 @@
 </p>
 
 [![PyPI](https://badge.fury.io/py/sql-sp-harness.svg)](https://pypi.python.org/pypi/sql-sp-harness) 
-![Python 3.10|3.12|3.13](https://img.shields.io/badge/python-3.10&nbsp;|&nbsp;3.12&nbsp;|&nbsp;3.13-blue.svg)](https://github.com/DeeprajDeveloper/sql-sp-harness)
+[![Python 3.10|3.12|3.13](https://img.shields.io/badge/python-3.10&nbsp;|&nbsp;3.12&nbsp;|&nbsp;3.13-blue.svg)](https://github.com/DeeprajDeveloper/sql-sp-harness)
 
 # sql-sp-harness
 
