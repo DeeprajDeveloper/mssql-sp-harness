@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
@@ -12,11 +11,10 @@ import sqlglot
 from sqlglot import exp
 from sqlglot.errors import ParseError
 
+from sql_sp_harness.constants import GO_PATTERN
 from sql_sp_harness.t_sql_scan import TsqlScanResult, scan_tsql
 
 SQLGLOT_LOGGER = logging.getLogger("sqlglot")
-
-GO_PATTERN = re.compile(r"^\s*GO\s*(--.*)?$", re.IGNORECASE | re.MULTILINE)
 
 
 @dataclass

@@ -9,6 +9,15 @@ from typing import Iterator
 
 from sqlglot import exp
 
+from sql_sp_harness.constants import (
+    DELETE_TARGET,
+    DETAIL_BLOCK_COMMENT,
+    DETAIL_LINE_PREFIX,
+    DETAIL_LINE_STRIP,
+    INSERT_TARGET,
+    MERGE_TARGET,
+    UPDATE_TARGET,
+)
 from sql_sp_harness.console import failure, heading, success, warning
 from sql_sp_harness.parse import ParseResult, parse_sql, root_tree
 from sql_sp_harness.t_sql_scan import TsqlScanResult, scan_tsql
@@ -25,13 +34,6 @@ COUNT_SECTIONS: tuple[tuple[str, str], ...] = (
     ("SET (@variables)", "set_variable"),
     ("SELECT @assignments", "select_assign"),
     ("Command fragments (partial)", "command_fragments"),
-)
-
-SCAN_SECTIONS: tuple[tuple[str, str], ...] = (
-    ("scan INSERT", "scan_insert"),
-    ("scan UPDATE", "scan_update"),
-    ("scan DELETE", "scan_delete"),
-    ("scan MERGE", "scan_merge"),
 )
 
 def _truncate_sql(text: str, max_len: int = 120) -> str:
@@ -92,7 +94,7 @@ def _render_table(
 class InventoryReport:
     """Counts of structural elements in a T-SQL script."""
 
-    parse_ok: bool
+    is_parsable: bool
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     insert: int = 0
@@ -106,27 +108,15 @@ class InventoryReport:
     select_assign: int = 0
     command_fragments: int = 0
     try_catch_blocks: int = 0
-    scan_insert: int = 0
-    scan_update: int = 0
-    scan_delete: int = 0
-    scan_merge: int = 0
     details: dict[str, list[str]] = field(default_factory=dict)
 
     def _count_sections(self) -> Iterator[tuple[str, int]]:
         for label, attr in COUNT_SECTIONS:
             yield label, int(getattr(self, attr))
 
-    def _scan_sections(self) -> Iterator[tuple[str, int]]:
-        for label, attr in SCAN_SECTIONS:
-            yield label, int(getattr(self, attr))
-
     def _summary_rows(self, *, non_zero_only: bool) -> list[tuple[str, str]]:
-        rows: list[tuple[str, str]] = [("parse_ok", str(self.parse_ok))]
+        rows: list[tuple[str, str]] = [("is_parsable", str(self.is_parsable))]
         for label, value in self._count_sections():
-            if non_zero_only and value == 0:
-                continue
-            rows.append((label, str(value)))
-        for label, value in self._scan_sections():
             if non_zero_only and value == 0:
                 continue
             rows.append((label, str(value)))
@@ -160,7 +150,7 @@ class InventoryReport:
         if not colorize:
             return line
         label, value = row[0], row[1]
-        if label == "parse_ok":
+        if label == "is_parsable":
             return success(line, enabled=True) if value == "True" else failure(line, enabled=True)
         try:
             numeric = int(value)
@@ -180,9 +170,9 @@ class InventoryReport:
     def to_text(self, *, colorize: bool = False, non_zero_only: bool = False) -> str:
         """Render inventory report in three sections: summary, issues, identified."""
         lines: list[str] = [
-            heading("SP Debug — Inventory Report", enabled=colorize)
+            heading("sql-sp-harness - Analysis Report", enabled=colorize)
             if colorize
-            else "SP Debug — Inventory Report",
+            else "sql-sp-harness - Analysis Report",
             "-" * 72,
         ]
 
@@ -355,20 +345,14 @@ def _collect_scan_details(scan: TsqlScanResult) -> dict[str, list[str]]:
     return details
 
 
-INSERT_TARGET = re.compile(r"INSERT\s+INTO\s+(\S+)", re.IGNORECASE)
-UPDATE_TARGET = re.compile(r"UPDATE\s+(\S+)", re.IGNORECASE)
-DELETE_TARGET = re.compile(r"DELETE\s+FROM\s+(\S+)", re.IGNORECASE)
-MERGE_TARGET = re.compile(r"MERGE\s+(\S+)", re.IGNORECASE)
-
-
 def _detail_text(detail: str) -> str:
-    text = re.sub(r"^L\d+:\s*", "", detail)
-    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    text = DETAIL_LINE_STRIP.sub("", detail)
+    text = DETAIL_BLOCK_COMMENT.sub("", text)
     return " ".join(text.split())
 
 
 def _detail_line(detail: str) -> int | None:
-    match = re.match(r"^L(\d+):", detail)
+    match = DETAIL_LINE_PREFIX.match(detail)
     return int(match.group(1)) if match else None
 
 
@@ -468,10 +452,7 @@ def _merge_details(
 
 
 def _apply_scan(report: InventoryReport, scan: TsqlScanResult) -> None:
-    report.scan_insert = scan.insert
-    report.scan_update = scan.update
-    report.scan_delete = scan.delete
-    report.scan_merge = scan.merge
+    """Merge text-scan DML counts into main fields (sqlglot may miss TRY/CATCH bodies)."""
     report.try_catch_blocks = scan.try_catch_blocks
     report.insert = _merge_dml_count(report.insert, scan.insert)
     report.update = _merge_dml_count(report.update, scan.update)
@@ -488,7 +469,7 @@ def inventory_from_parse(result: ParseResult) -> InventoryReport:
     tree = root_tree(result)
     scan = result.scan or scan_tsql(result.source)
     report = InventoryReport(
-        parse_ok=result.ok,
+        is_parsable=result.ok,
         errors=list(result.errors),
         warnings=list(result.warnings),
     )

@@ -5,11 +5,12 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 from typing import Optional
-
+from datetime import datetime
 import typer
 
 from sql_sp_harness import __version__
 from sql_sp_harness.console import supports_color
+from sql_sp_harness.encoding import read_sql_bytes, read_sql_file
 from sql_sp_harness.inventory import inventory_from_sql
 from sql_sp_harness.transform import transform_sql
 
@@ -38,6 +39,8 @@ app = typer.Typer(
     no_args_is_help=True,
     add_completion=False,
 )
+
+CURRENT_DATETIME = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 @app.command("version")
@@ -72,10 +75,24 @@ def _root_callback(
         raise typer.Exit()
 
 
-def _read_input(path: Optional[Path]) -> str:
+def _read_input(
+    path: Optional[Path],
+    encoding: Optional[str] = None,
+    *,
+    quiet: bool = False,
+) -> str:
     if path is None or str(path) == "-":
+        if encoding:
+            text, _ = read_sql_bytes(sys.stdin.buffer.read(), encoding)
+            return text
         return sys.stdin.read()
-    return path.read_text(encoding="utf-8")
+    text, detected = read_sql_file(path, encoding)
+    if detected and not quiet:
+        typer.echo(
+            f"[{CURRENT_DATETIME}] [INFO] Input decoded as {detected} (common for SSMS Unicode exports).",
+            err=True,
+        )
+    return text
 
 
 def _write_output(path: Optional[Path], content: str) -> None:
@@ -90,16 +107,17 @@ def _run_analyze(
     report: Optional[Path],
     plain: bool,
     full: bool,
+    encoding: Optional[str],
 ) -> None:
-    sql = _read_input(input)
+    sql = _read_input(input, encoding)
     inv = inventory_from_sql(sql)
     colorize = supports_color() and not plain and report is None
     text = inv.to_text(colorize=colorize, non_zero_only=not full)
     if report:
         report.write_text(text + "\n", encoding="utf-8")
-        typer.echo(f"Report written to {report}")
+        typer.echo(f"[{CURRENT_DATETIME}] [INFO] Report written to {report}")
     else:
-        typer.echo(text)
+        typer.echo(f"[{CURRENT_DATETIME}] [INFO] {text}")
 
 
 @app.command("analyze")
@@ -114,7 +132,7 @@ def analyze_cmd(
         None,
         "--report",
         "-r",
-        help="Write plain-text report to file (no ANSI colors).",
+        help="Write plain-text (.txt) file report (no ANSI colors).",
     ),
     plain: bool = typer.Option(
         False,
@@ -125,6 +143,12 @@ def analyze_cmd(
         False,
         "--full",
         help="Show all sections, including zero counts.",
+    ),
+    encoding: Optional[str] = typer.Option(
+        None,
+        "--encoding",
+        "-e",
+        help="Force input encoding (e.g. utf-8, utf-16-le, cp1252). Auto-detected if omitted.",
     ),
 ) -> None:
     """
@@ -133,36 +157,7 @@ def analyze_cmd(
     Summarizes DML against real tables, TRY/CATCH blocks, loops, SET statements,
     and other structural detail — useful before generating a debug harness.
     """
-    _run_analyze(input, report, plain, full)
-
-
-@app.command("inventory", hidden=True)
-def inventory_cmd(
-    input: Path = typer.Option(
-        ...,
-        "--input",
-        "-i",
-        help="Input .sql file (use - for stdin).",
-    ),
-    report: Optional[Path] = typer.Option(
-        None,
-        "--report",
-        "-r",
-        help="Write plain-text report to file (no ANSI colors).",
-    ),
-    plain: bool = typer.Option(
-        False,
-        "--plain",
-        help="Disable ANSI colors on terminal output.",
-    ),
-    full: bool = typer.Option(
-        False,
-        "--full",
-        help="Show all sections, including zero counts.",
-    ),
-) -> None:
-    """Deprecated alias for analyze."""
-    _run_analyze(input, report, plain, full)
+    _run_analyze(input, report, plain, full, encoding)
 
 
 def _run_generate(
@@ -172,13 +167,14 @@ def _run_generate(
     no_stub_dml: bool,
     block_markers: bool,
     quiet: bool,
+    encoding: Optional[str],
 ) -> None:
     if trace_style not in ("raiserror", "print"):
-        typer.echo("trace-style must be 'raiserror' or 'print'", err=True)
+        typer.echo(f"[{CURRENT_DATETIME}] [ERROR] trace-style must be 'raiserror' or 'print'", err=True)
         raise typer.Exit(1)
 
-    sql = _read_input(input)
-    progress = None if quiet else lambda msg: typer.echo(msg, err=True)
+    sql = _read_input(input, encoding, quiet=quiet)
+    progress = None if quiet else lambda msg: typer.echo(f"[{CURRENT_DATETIME}] [INFO] {msg}", err=True)
 
     result = transform_sql(
         sql,
@@ -195,16 +191,16 @@ def _run_generate(
     _write_output(out_path, result.sql)
 
     summary = (
-        f"Done: {result.stats.dml_stubbed} DML stubbed, "
-        f"{result.stats.traces_added} traces added."
+        f"[{CURRENT_DATETIME}] [INFO] Done: {result.stats.dml_stubbed} DML stubbed, "
+        f"[{CURRENT_DATETIME}] [INFO] {result.stats.traces_added} traces added."
     )
     if out_path and str(out_path) != "-":
-        typer.echo(f"{summary} Written to {out_path}")
+        typer.echo(f"[{CURRENT_DATETIME}] [INFO] {summary} Written to {out_path}")
     else:
-        typer.echo(summary)
+        typer.echo(f"[{CURRENT_DATETIME}] [INFO] {summary}")
 
     if result.parse_errors:
-        typer.echo("Parse warnings present — review banner in output.", err=True)
+        typer.echo(f"[{CURRENT_DATETIME}] [ERROR] Parse warnings present — review banner in output.", err=True)
         raise typer.Exit(2)
 
 
@@ -241,6 +237,12 @@ def generate_cmd(
         "-q",
         help="Suppress progress messages on stderr.",
     ),
+    encoding: Optional[str] = typer.Option(
+        None,
+        "--encoding",
+        "-e",
+        help="Force input encoding (e.g. utf-8, utf-16-le, cp1252). Auto-detected if omitted.",
+    ),
 ) -> None:
     """
     Generate a debug harness script from a stored procedure.
@@ -248,45 +250,7 @@ def generate_cmd(
     Replaces writes to real tables with SELECT previews and adds PRINT traces on
     variables so you can run the script on a dev database without side effects.
     """
-    _run_generate(input, output, trace_style, no_stub_dml, block_markers, quiet)
-
-
-@app.command("transform", hidden=True)
-def transform_cmd(
-    input: Path = typer.Option(
-        ...,
-        "--input",
-        "-i",
-        help="Input .sql file (use - for stdin).",
-    ),
-    output: Optional[Path] = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Output path (default: <input>_debug.sql).",
-    ),
-    trace_style: str = typer.Option(
-        "print",
-        "--trace-style",
-        help="Trace style: print (default) or raiserror (NOWAIT).",
-    ),
-    no_stub_dml: bool = typer.Option(
-        False, "--no-stub-dml", help="Skip DML stubbing; only add traces."
-    ),
-    block_markers: bool = typer.Option(
-        False,
-        "--block-markers",
-        help="Insert -- [DBG] Step N markers before IF/WHILE.",
-    ),
-    quiet: bool = typer.Option(
-        False,
-        "--quiet",
-        "-q",
-        help="Suppress progress messages on stderr.",
-    ),
-) -> None:
-    """Deprecated alias for generate."""
-    _run_generate(input, output, trace_style, no_stub_dml, block_markers, quiet)
+    _run_generate(input, output, trace_style, no_stub_dml, block_markers, quiet, encoding)
 
 
 def main() -> None:

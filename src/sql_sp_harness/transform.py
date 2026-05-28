@@ -8,28 +8,24 @@ from dataclasses import dataclass, field
 
 from sqlglot import exp
 
+from sql_sp_harness.constants import (
+    ALREADY_STUBBED,
+    DELETE_FROM_CLAUSE,
+    DELETE_TABLE_VAR,
+    DML_START,
+    INLINE_SET,
+    INSERT_TABLE_VAR,
+    INSERT_TARGET,
+    LINE_INDENT,
+    SELECT_ASSIGN,
+    SET_NOCOUNT,
+    SET_VAR_LINE,
+    UPDATE_TABLE_VAR,
+    UPDATE_TARGET,
+)
 from sql_sp_harness.dml_preview import build_dml_preview
 from sql_sp_harness.parse import parse_for_transform, suppress_sqlglot_warnings
-
-DML_START = re.compile(
-    r"^\s*(INSERT|UPDATE|DELETE|MERGE)\b",
-    re.IGNORECASE,
-)
-INSERT_TABLE_VAR = re.compile(r"^\s*INSERT\s+INTO\s+@", re.IGNORECASE)
-UPDATE_TABLE_VAR = re.compile(r"^\s*UPDATE\s+@", re.IGNORECASE)
-DELETE_TABLE_VAR = re.compile(r"^\s*DELETE\s+FROM\s+@", re.IGNORECASE)
-SET_VAR_LINE = re.compile(r"^(\s*)SET\s+(@\w+)\s*=", re.IGNORECASE)
-INLINE_SET = re.compile(
-    r"(?P<indent>^|\n)(?P<prefix>.*?)(?P<stmt>SET\s+(?P<var>@\w+)\s*=[^;]+;)",
-    re.IGNORECASE | re.DOTALL,
-)
-SELECT_START = re.compile(r"^\s*SELECT\b", re.IGNORECASE)
-SELECT_ASSIGN = re.compile(
-    r"(?P<stmt>SELECT\s+[^;]*@\w+\s*=[^;]+;)",
-    re.IGNORECASE | re.DOTALL,
-)
-ALREADY_STUBBED = re.compile(r"\[DBG-PREVIEW\]|\[DBG-DISABLED\]|\[DBG\]\s+Skipped", re.IGNORECASE)
-SET_NOCOUNT = re.compile(r"^\s*SET\s+NOCOUNT\b", re.IGNORECASE)
+from sql_sp_harness.t_sql_scan import find_dml_block_end
 
 
 @dataclass
@@ -63,7 +59,7 @@ def _is_table_variable_dml(first_line: str) -> bool:
 
 
 def _find_dml_line_blocks(lines: list[str]) -> list[tuple[int, int]]:
-    """Return (start_line, end_line) inclusive for DML blocks ending with ';'."""
+    """Return (start_line, end_line) inclusive for DML blocks."""
     blocks: list[tuple[int, int]] = []
     i = 0
     while i < len(lines):
@@ -78,12 +74,9 @@ def _find_dml_line_blocks(lines: list[str]) -> list[tuple[int, int]]:
             i += 1
             continue
         start = i
-        while i < len(lines) and ";" not in lines[i]:
-            i += 1
-        if i >= len(lines):
-            break
-        blocks.append((start, i))
-        i += 1
+        end = find_dml_block_end(lines, start)
+        blocks.append((start, end))
+        i = end + 1
     return blocks
 
 
@@ -107,13 +100,13 @@ def _replace_dml_block(block_lines: list[str], indent: str) -> list[str]:
 
 def _dml_target_label(first_line: str, kind: str) -> str:
     if kind == "INSERT":
-        m = re.search(r"INTO\s+(\S+)", first_line, re.I)
+        m = INSERT_TARGET.search(first_line)
         return m.group(1) if m else "table"
     if kind == "UPDATE":
-        m = re.search(r"UPDATE\s+(\S+)", first_line, re.I)
+        m = UPDATE_TARGET.search(first_line)
         return m.group(1) if m else "table"
     if kind == "DELETE":
-        m = re.search(r"FROM\s+(\S+)", first_line, re.I)
+        m = DELETE_FROM_CLAUSE.search(first_line)
         return m.group(1) if m else "table"
     return "statement"
 
@@ -141,7 +134,7 @@ def _inject_set_traces(text: str, trace_style: str) -> tuple[str, int]:
         if match.group("prefix"):
             line_start = match.group("prefix").rfind("\n")
             prefix_tail = match.group("prefix")[line_start + 1 :] if line_start >= 0 else match.group("prefix")
-            m = re.match(r"^(\s*)", prefix_tail)
+            m = LINE_INDENT.match(prefix_tail)
             if m:
                 indent = m.group(1) or indent
         trace = _trace_line_for_var(var, indent, trace_style)
@@ -217,7 +210,7 @@ def _apply_line_edits(
             )
         for start, end in reversed(blocks):
             block = lines[start : end + 1]
-            indent_match = re.match(r"^(\s*)", block[0])
+            indent_match = LINE_INDENT.match(block[0])
             indent = indent_match.group(1) if indent_match else ""
             replacement = _replace_dml_block(block, indent)
             lines[start : end + 1] = replacement
@@ -239,7 +232,7 @@ def _apply_line_edits(
             stripped = line.strip().upper()
             if stripped.startswith("IF ") or stripped.startswith("WHILE "):
                 step += 1
-                indent = re.match(r"^(\s*)", line).group(1)  # type: ignore[union-attr]
+                indent = LINE_INDENT.match(line).group(1)  # type: ignore[union-attr]
                 marker = f"{indent}-- [DBG] Step {step}: {line.strip()[:80]}"
                 markers.append((idx, marker))
                 stats.warnings.append(f"Block marker at step {step}")

@@ -5,7 +5,7 @@ from sql_sp_harness.inventory import InventoryReport
 
 def test_to_text_non_zero_only_hides_zeros():
     inv = InventoryReport(
-        parse_ok=True,
+        is_parsable=True,
         insert=1,
         update=0,
         set_variable=2,
@@ -28,30 +28,30 @@ def test_to_text_non_zero_only_hides_zeros():
 
 
 def test_to_text_full_shows_zeros():
-    inv = InventoryReport(parse_ok=True, insert=1, update=0)
+    inv = InventoryReport(is_parsable=True, insert=1, update=0)
     text = inv.to_text(non_zero_only=False)
     assert "UPDATE" in text
     assert "0" in text
 
 
 def test_to_text_colorize_adds_ansi():
-    inv = InventoryReport(parse_ok=True, insert=2, update=0)
+    inv = InventoryReport(is_parsable=True, insert=2, update=0)
     text = inv.to_text(colorize=True, non_zero_only=False)
     assert "\033[32m" in text
     assert "\033[31m" in text
 
 
 def test_to_text_plain_has_no_ansi():
-    inv = InventoryReport(parse_ok=False, insert=1)
+    inv = InventoryReport(is_parsable=False, insert=1)
     text = inv.to_text(colorize=False, non_zero_only=True)
     assert "\033[" not in text
-    assert "parse_ok" in text
+    assert "is_parsable" in text
     assert "INSERT" in text
 
 
 def test_to_text_issues_table():
     inv = InventoryReport(
-        parse_ok=True,
+        is_parsable=True,
         warnings=["warn one"],
         errors=["err one"],
     )

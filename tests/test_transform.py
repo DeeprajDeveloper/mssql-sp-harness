@@ -59,12 +59,41 @@ def test_transform_adds_trace_after_set():
     assert result.stats.traces_added >= 1
 
 
+def test_transform_without_statement_semicolons():
+    """Enterprise scripts often omit trailing semicolons."""
+    sql = """CREATE PROC dbo.p AS BEGIN
+    SET @x = 1
+    UPDATE dbo.T SET c = 1 WHERE id = 1
+    SET @y = 2
+    END"""
+    result = transform_sql(sql)
+    assert "PRINT CONCAT(N'[DBG] @x" in result.sql
+    assert "PRINT CONCAT(N'[DBG] @y" in result.sql
+    assert result.stats.traces_added >= 2
+    assert result.stats.dml_stubbed >= 1
+    assert _active_dml_lines(result.sql) == []
+
+
 def test_transform_reports_progress():
     messages: list[str] = []
     transform_sql("CREATE PROC dbo.p AS BEGIN SET @x = 1; END", on_progress=messages.append)
     assert messages
     assert "Transform started" in messages[0]
     assert any("complete" in message.lower() for message in messages)
+
+
+def test_transform_enterprise_complex_proc():
+    sql = (SAMPLES / "enterprise_complex_proc.sql").read_text(encoding="utf-8")
+    result = transform_sql(sql, add_block_markers=True)
+    assert result.stats.dml_stubbed >= 4  # Orders, Inventory, MERGE, AuditLog, ErrorLog
+    assert result.stats.traces_added >= 2
+    assert "DEBUG HARNESS" in result.sql
+    assert "[DBG-PREVIEW]" in result.sql or "[DBG-DISABLED]" in result.sql
+    assert "PRINT CONCAT(N'[DBG]" in result.sql
+    assert "[DBG] Step" in result.sql
+    active = _active_dml_lines(result.sql)
+    assert not any("dbo." in ln for ln in active)
+    assert any("@Queue" in ln for ln in active)  # table-variable DELETE kept
 
 
 def test_transform_block_markers_do_not_skip_lines():

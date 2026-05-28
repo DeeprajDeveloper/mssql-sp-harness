@@ -4,17 +4,21 @@ from __future__ import annotations
 
 import re
 
-CLAUSE_FROM = re.compile(r"\bFROM\b", re.IGNORECASE)
-CLAUSE_WHERE = re.compile(r"\bWHERE\b", re.IGNORECASE)
-CLAUSE_SET = re.compile(r"\bSET\b", re.IGNORECASE)
-INSERT_INTO = re.compile(r"^\s*INSERT\s+INTO\s+(\S+)", re.IGNORECASE)
-DELETE_FROM = re.compile(
-    r"^\s*DELETE\s+FROM\s+(\S+)(?:\s+WHERE\s+(.+))?\s*;?\s*$",
-    re.IGNORECASE | re.DOTALL,
+from sql_sp_harness.constants import (
+    BARE_VAR,
+    CLAUSE_FROM,
+    CLAUSE_SET,
+    CLAUSE_WHERE,
+    DELETE_FROM_LINE,
+    INSERT_INTO_LINE,
+    QUOTED_LITERAL,
+    CALCULATION_PATTERN,
+    UPDATE_TARGET,
 )
 
 
 def _extract_paren_content(text: str, open_index: int) -> tuple[str, int] | None:
+    """Extract content between parentheses."""
     if open_index >= len(text) or text[open_index] != "(":
         return None
     depth = 0
@@ -30,16 +34,19 @@ def _extract_paren_content(text: str, open_index: int) -> tuple[str, int] | None
 
 
 def _block_sql(block_lines: list[str]) -> str:
+    """Combine SQL command block lines into a single SQL string."""
     parts = [ln.strip() for ln in block_lines if ln.strip()]
     return re.sub(r"\s+", " ", " ".join(parts)).strip()
 
 
 def _find_clause(text: str, pattern: re.Pattern[str]) -> int | None:
+    """Find the position of the first occurrence of a pattern in text."""
     match = pattern.search(text)
     return match.start() if match else None
 
 
 def _split_expressions(text: str) -> list[str]:
+    """Split a text string into a list of expressions."""
     parts: list[str] = []
     depth = 0
     current: list[str] = []
@@ -62,6 +69,7 @@ def _split_expressions(text: str) -> list[str]:
 
 
 def _parse_assignments(set_clause: str) -> list[tuple[str, str]]:
+    """Parse a SET clause into a list of assignments."""
     assignments: list[tuple[str, str]] = []
     for part in _split_expressions(set_clause):
         if "=" not in part:
@@ -72,26 +80,24 @@ def _parse_assignments(set_clause: str) -> list[tuple[str, str]]:
 
 
 def _column_alias(name: str) -> str:
+    """Generate a column alias for a given column name."""
     base = name.split(".")[-1].strip("[]")
     return f"[{base}]"
 
 
-_BARE_VAR = re.compile(r"^@\w+$", re.IGNORECASE)
-_QUOTED_LITERAL = re.compile(r"^(N?'([^']|'')*'|\d+(\.\d+)?)$", re.IGNORECASE)
-
-
 def _lhs_column_name(lhs: str) -> str:
+    """Extract the last component of a column name."""
     return lhs.split(".")[-1].strip("[]")
 
 
 def _is_calculation(expr: str) -> bool:
     """True when RHS is an expression, not a bare variable or simple literal."""
     text = expr.strip()
-    if _BARE_VAR.match(text):
+    if BARE_VAR.match(text):
         return False
-    if _QUOTED_LITERAL.match(text):
+    if QUOTED_LITERAL.match(text):
         return False
-    if re.search(r"[\+\-\*/%]|^\w+\(", text, re.IGNORECASE):
+    if CALCULATION_PATTERN.search(text):
         return True
     return False
 
@@ -99,7 +105,7 @@ def _is_calculation(expr: str) -> bool:
 def _preview_column_alias(lhs: str, rhs: str) -> str:
     """Choose preview column alias based on SET/VALUES expression shape."""
     rhs = rhs.strip()
-    if _BARE_VAR.match(rhs):
+    if BARE_VAR.match(rhs):
         return f"[{rhs}]"
     col = _lhs_column_name(lhs)
     if _is_calculation(rhs):
@@ -108,8 +114,9 @@ def _preview_column_alias(lhs: str, rhs: str) -> str:
 
 
 def _parse_update(sql: str) -> dict[str, str | list[tuple[str, str]]] | None:
+    """Parse an UPDATE statement into a dictionary of its components."""
     text = sql.strip().rstrip(";")
-    if not re.match(r"UPDATE\b", text, re.I):
+    if not UPDATE_TARGET.match(text):
         return None
 
     rest = re.sub(r"^UPDATE\s+", "", text, flags=re.I).strip()
@@ -147,8 +154,9 @@ def _parse_update(sql: str) -> dict[str, str | list[tuple[str, str]]] | None:
 
 
 def _parse_insert(sql: str) -> dict[str, str | list[str]] | None:
+    """Parse an INSERT statement into a dictionary of its components."""
     one_line = re.sub(r"\s+", " ", sql.strip().rstrip(";"))
-    head = INSERT_INTO.match(one_line)
+    head = INSERT_INTO_LINE.match(one_line)
     if not head:
         return None
 
@@ -187,8 +195,9 @@ def _parse_insert(sql: str) -> dict[str, str | list[str]] | None:
 
 
 def _parse_delete(sql: str) -> dict[str, str] | None:
+    """Parse a DELETE statement into a dictionary of its components."""
     one_line = re.sub(r"\s+", " ", sql.strip().rstrip(";"))
-    match = DELETE_FROM.match(one_line)
+    match = DELETE_FROM_LINE.match(one_line)
     if not match:
         return None
     return {
@@ -199,6 +208,7 @@ def _parse_delete(sql: str) -> dict[str, str] | None:
 
 
 def _format_multiline(indent: str, sql: str) -> list[str]:
+    """Format a multiline SQL string with a given indentation."""
     return [f"{indent}{line}" if line else "" for line in sql.splitlines()]
 
 

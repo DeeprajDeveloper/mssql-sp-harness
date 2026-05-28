@@ -5,7 +5,7 @@
   >
 </p>
 
-[![PyPI](https://badge.fury.io/py/sql-sp-harness.svg)](https://pypi.python.org/pypi/sql-sp-harness) 
+[![PyPI version](https://badge.fury.io/py/sql-sp-harness.svg)](https://badge.fury.io/py/sql-sp-harness)
 [![Python 3.10|3.12|3.13](https://img.shields.io/badge/python-3.10&nbsp;|&nbsp;3.12&nbsp;|&nbsp;3.13-blue.svg)](https://github.com/DeeprajDeveloper/sql-sp-harness)
 
 # sql-sp-harness
@@ -69,6 +69,15 @@ Build for PyPI:
 ./scripts/publish-pypi.sh upload
 ```
 
+## File encoding
+
+SSMS often saves scripts as **UTF-16 LE** (Unicode). Older Windows exports may use **Windows-1252** (smart quotes, en-dashes). The CLI auto-detects these; output is always UTF-8. Override with `--encoding` if needed:
+
+```bash
+sql-sp-harness generate -i MyProc.sql -o MyProc_debug.sql --encoding utf-16-le
+```
+
+
 ## Limitations
 
 | Pattern | Behavior |
@@ -78,7 +87,7 @@ Build for PyPI:
 | Cursors | Not rewritten |
 | DDL inside proc | Not stubbed |
 
-Always review generated scripts before running on a shared server.
+Always review generated scripts before running them on the database server.
 
 ## License
 

@@ -7,22 +7,25 @@ supplements the AST with comment-aware line scanning.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 
-DML_START = re.compile(
-    r"^\s*(INSERT|UPDATE|DELETE|MERGE)\b",
-    re.IGNORECASE,
+from sql_sp_harness.constants import (
+    BEGIN_CATCH,
+    BEGIN_TRY,
+    DELETE_TABLE_VAR,
+    DML_DELETE_CLAUSE,
+    DML_INSERT_CONTINUATION,
+    DML_INSERT_PAREN,
+    DML_START,
+    DML_UPDATE_CLAUSE,
+    DML_UPDATE_COLUMN_SET,
+    END_CATCH,
+    END_TRY,
+    INSERT_TABLE_VAR,
+    NEW_STMT_AFTER_DML,
+    SUMMARY_MAX_LEN,
+    UPDATE_TABLE_VAR,
 )
-INSERT_TABLE_VAR = re.compile(r"^\s*INSERT\s+INTO\s+@", re.IGNORECASE)
-UPDATE_TABLE_VAR = re.compile(r"^\s*UPDATE\s+@", re.IGNORECASE)
-DELETE_TABLE_VAR = re.compile(r"^\s*DELETE\s+FROM\s+@", re.IGNORECASE)
-BEGIN_TRY = re.compile(r"\bBEGIN\s+TRY\b", re.IGNORECASE)
-END_TRY = re.compile(r"\bEND\s+TRY\b", re.IGNORECASE)
-BEGIN_CATCH = re.compile(r"\bBEGIN\s+CATCH\b", re.IGNORECASE)
-END_CATCH = re.compile(r"\bEND\s+CATCH\b", re.IGNORECASE)
-
-SUMMARY_MAX_LEN = 120
 
 
 @dataclass
@@ -128,8 +131,47 @@ def _is_table_variable_dml(first_line: str) -> bool:
     )
 
 
+def _line_starts_new_statement(line: str, dml_kind: str) -> bool:
+    """True when line begins a new statement after a multi-line DML block."""
+    if not line.strip():
+        return False
+    if dml_kind in ("UPDATE", "MERGE"):
+        if DML_UPDATE_COLUMN_SET.match(line):
+            return False
+        if DML_UPDATE_CLAUSE.match(line):
+            return False
+    if dml_kind == "INSERT":
+        if DML_INSERT_CONTINUATION.match(line):
+            return False
+        if DML_INSERT_PAREN.match(line):
+            return False
+    if dml_kind == "DELETE":
+        if DML_DELETE_CLAUSE.match(line):
+            return False
+    return bool(NEW_STMT_AFTER_DML.match(line))
+
+
+def find_dml_block_end(lines: list[str], start: int) -> int:
+    """Inclusive end line for a DML statement (semicolon optional)."""
+    dml_kind = lines[start].strip().split()[0].upper()
+    i = start
+    while i < len(lines):
+        if ";" in lines[i]:
+            return i
+        if i > start:
+            j = i + 1
+            while j < len(lines) and not lines[j].strip():
+                j += 1
+            if j < len(lines) and _line_starts_new_statement(lines[j], dml_kind):
+                return i
+        if i == len(lines) - 1:
+            return i
+        i += 1
+    return start
+
+
 def _find_dml_statements(lines: list[str]) -> list[DmlFinding]:
-    """Locate DML statements ending with ';' (same boundaries as transform stubbing)."""
+    """Locate DML statements (same boundaries as transform stubbing)."""
     findings: list[DmlFinding] = []
     in_block_comment = False
     i = 0
@@ -146,27 +188,17 @@ def _find_dml_statements(lines: list[str]) -> list[DmlFinding]:
             continue
 
         start = i
-        block_lines = [lines[i]]
-        while i < len(lines):
-            stmt_line, in_block_comment = _strip_block_comments(lines[i], in_block_comment)
-            if ";" in stmt_line:
-                break
-            i += 1
-            if i < len(lines):
-                block_lines.append(lines[i])
-        if i >= len(lines):
-            break
-
+        end = find_dml_block_end(lines, start)
         kind = effective.strip().split()[0].upper()
         findings.append(
             DmlFinding(
                 kind=kind,
                 start_line=start + 1,
-                end_line=i + 1,
-                text="\n".join(block_lines),
+                end_line=end + 1,
+                text="\n".join(lines[start : end + 1]),
             )
         )
-        i += 1
+        i = end + 1
     return findings
 
 

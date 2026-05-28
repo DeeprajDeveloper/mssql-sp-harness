@@ -1,0 +1,31 @@
+SP Debug — Inventory Report
+------------------------------------------------------------------------
+
+Summary
+  Element                      Count
+  ---------------------------  -----
+  is_parsable                  True 
+  INSERT                       3    
+  UPDATE                       3    
+  MERGE                        1    
+  TRY/CATCH blocks             1    
+  Command fragments (partial)  1    
+
+Warnings & Errors
+  Type     Message                                                                                                         
+  -------  ----------------------------------------------------------------------------------------------------------------
+  Warning  [ParseWarning] sqlglot may miss UPDATE/DML inside TRY/CATCH Command fragments; text scan supplements AST counts.
+
+Identified
+  Kind                         Detail                                                                                                                       
+  ---------------------------  -----------------------------------------------------------------------------------------------------------------------------
+  INSERT                       L84: INSERT INTO dbo.AuditLog (EntityId, ActionCode, CreatedDate) VALUES (@CurrentOrderID, N'SETTLE', GETDATE())             
+  INSERT                       L99: INSERT INTO dbo.ErrorLog (BatchID, ErrorMessage, CreatedDate) VALUES (@BatchID, ERROR_MESSAGE(), GETDATE())             
+  INSERT                       L81: INSERT (OrderID, BatchID, CreatedDate) VALUES (src.OrderID, @BatchID, GETDATE())                                        
+  UPDATE                       L64: UPDATE dbo.Orders SET OrderStatus = N'Settled', SettledDate = GETDATE() WHERE OrderID = @CurrentOrderID                 
+  UPDATE                       L69: UPDATE i SET i.ReservedQty = i.ReservedQty - oi.Quantity FROM dbo.Inventory i INNER JOIN dbo.OrderItems oi ON oi.Prod...
+  UPDATE                       L79: UPDATE SET tgt.UpdatedDate = GETDATE() WHEN NOT MATCHED THEN                                                            
+  MERGE                        L75: MERGE dbo.SettlementLog AS tgt USING (SELECT @CurrentOrderID AS OrderID) AS src ON tgt.OrderID = src.OrderID WHEN MAT...
+  TRY/CATCH blocks             #1 L36-L104: BEGIN TRY (L36) ... END CATCH (L104)                                                                            
+  Command fragments (partial)  SET NOCOUNT ON DECLARE @RowCount INT = 0 DECLARE @CurrentOrderID INT DECLARE @Status NVARCHAR(20) = N'Pending' DECLAR...     
+------------------------------------------------------------------------

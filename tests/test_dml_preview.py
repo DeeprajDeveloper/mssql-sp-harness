@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from sql_sp_harness.dml_preview import build_dml_preview
+from sql_sp_harness.t_sql_scan import find_dml_block_end
 from sql_sp_harness.transform import transform_sql
 
 SAMPLES = Path(__file__).parents[1] / "samples"
@@ -12,9 +13,7 @@ def test_update_preview_for_my_proc():
     sql = (SAMPLES / "my_proc.sql").read_text(encoding="utf-8")
     lines = sql.splitlines()
     start = next(i for i, ln in enumerate(lines) if ln.strip().startswith("UPDATE dbo.Employees"))
-    end = start
-    while ";" not in lines[end]:
-        end += 1
+    end = find_dml_block_end(lines, start)
     block = lines[start : end + 1]
 
     preview = build_dml_preview(block, "        ")

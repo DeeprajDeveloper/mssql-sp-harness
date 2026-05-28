@@ -43,7 +43,6 @@ Documentation = "https://github.com/DeeprajDeveloper/sql-sp-harness#readme"
 Repository = "https://github.com/DeeprajDeveloper/sql-sp-harness"
 Issues = "https://github.com/DeeprajDeveloper/sql-sp-harness/issues"
 Changelog = "https://github.com/DeeprajDeveloper/sql-sp-harness/releases"
-Extension = "https://github.com/DeeprajDeveloper/mssql-sp-debug-scripter"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0.0", "build>=1.0.0", "twine>=5.0.0"]
