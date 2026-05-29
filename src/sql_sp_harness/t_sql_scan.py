@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from sql_sp_harness.comments import strip_block_comments_on_line
 from sql_sp_harness.constants import (
     BEGIN_CATCH,
     BEGIN_TRY,
@@ -79,50 +80,6 @@ class TsqlScanResult:
     notes: list[str] = field(default_factory=list)
 
 
-def _strip_line_comment(line: str) -> str:
-    """Return line with trailing -- comments removed (string-aware enough for SPs)."""
-    out: list[str] = []
-    i = 0
-    in_string = False
-    while i < len(line):
-        ch = line[i]
-        if ch == "'":
-            if in_string and i + 1 < len(line) and line[i + 1] == "'":
-                out.append("''")
-                i += 2
-                continue
-            in_string = not in_string
-            out.append(ch)
-            i += 1
-            continue
-        if not in_string and ch == "-" and i + 1 < len(line) and line[i + 1] == "-":
-            break
-        out.append(ch)
-        i += 1
-    return "".join(out)
-
-
-def _strip_block_comments(line: str, in_block_comment: bool) -> tuple[str, bool]:
-    """Strip block comments and line comments; return scannable text."""
-    if in_block_comment:
-        end = line.find("*/")
-        if end == -1:
-            return "", True
-        line = line[end + 2 :]
-        in_block_comment = False
-
-    while True:
-        start = line.find("/*")
-        if start == -1:
-            break
-        end = line.find("*/", start + 2)
-        if end == -1:
-            return _strip_line_comment(line[:start]), True
-        line = line[:start] + line[end + 2 :]
-
-    return _strip_line_comment(line), in_block_comment
-
-
 def _is_table_variable_dml(first_line: str) -> bool:
     return bool(
         INSERT_TABLE_VAR.match(first_line)
@@ -176,7 +133,7 @@ def _find_dml_statements(lines: list[str]) -> list[DmlFinding]:
     in_block_comment = False
     i = 0
     while i < len(lines):
-        effective, in_block_comment = _strip_block_comments(lines[i], in_block_comment)
+        effective, in_block_comment = strip_block_comments_on_line(lines[i], in_block_comment)
         if not effective.strip():
             i += 1
             continue
@@ -206,7 +163,7 @@ def _try_catch_events(lines: list[str]) -> list[tuple[str, int]]:
     events: list[tuple[str, int]] = []
     in_block_comment = False
     for i, raw in enumerate(lines):
-        effective, in_block_comment = _strip_block_comments(raw, in_block_comment)
+        effective, in_block_comment = strip_block_comments_on_line(raw, in_block_comment)
         if not effective.strip():
             continue
         line_no = i + 1

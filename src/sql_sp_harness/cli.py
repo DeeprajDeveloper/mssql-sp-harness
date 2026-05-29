@@ -89,7 +89,7 @@ def _read_input(
     text, detected = read_sql_file(path, encoding)
     if detected and not quiet:
         typer.echo(
-            f"[{CURRENT_DATETIME}] [INFO] Input decoded as {detected} (common for SSMS Unicode exports).",
+            f"[{CURRENT_DATETIME}] Input decoded as {detected} (common for SSMS Unicode exports).",
             err=True,
         )
     return text
@@ -115,9 +115,9 @@ def _run_analyze(
     text = inv.to_text(colorize=colorize, non_zero_only=not full)
     if report:
         report.write_text(text + "\n", encoding="utf-8")
-        typer.echo(f"[{CURRENT_DATETIME}] [INFO] Report written to {report}")
+        typer.echo(f"[{CURRENT_DATETIME}] Report written to {report}")
     else:
-        typer.echo(f"[{CURRENT_DATETIME}] [INFO] {text}")
+        typer.echo(f"[{CURRENT_DATETIME}] {text}")
 
 
 @app.command("analyze")
@@ -166,6 +166,7 @@ def _run_generate(
     trace_style: str,
     no_stub_dml: bool,
     block_markers: bool,
+    keep_comments: bool,
     quiet: bool,
     encoding: Optional[str],
 ) -> None:
@@ -174,13 +175,14 @@ def _run_generate(
         raise typer.Exit(1)
 
     sql = _read_input(input, encoding, quiet=quiet)
-    progress = None if quiet else lambda msg: typer.echo(f"[{CURRENT_DATETIME}] [INFO] {msg}", err=True)
+    progress = None if quiet else lambda msg: typer.echo(f"[{CURRENT_DATETIME}] {msg}", err=True)
 
     result = transform_sql(
         sql,
         trace_style=trace_style,
         stub_dml=not no_stub_dml,
         add_block_markers=block_markers,
+        strip_comments=not keep_comments,
         on_progress=progress,
     )
 
@@ -191,13 +193,13 @@ def _run_generate(
     _write_output(out_path, result.sql)
 
     summary = (
-        f"[{CURRENT_DATETIME}] [INFO] Done: {result.stats.dml_stubbed} DML stubbed, "
-        f"[{CURRENT_DATETIME}] [INFO] {result.stats.traces_added} traces added."
+        f"[{CURRENT_DATETIME}] Done: {result.stats.dml_stubbed} DML stubbed, "
+        f"[{CURRENT_DATETIME}] {result.stats.traces_added} traces added."
     )
     if out_path and str(out_path) != "-":
-        typer.echo(f"[{CURRENT_DATETIME}] [INFO] {summary} Written to {out_path}")
+        typer.echo(f"[{CURRENT_DATETIME}] {summary} Written to {out_path}")
     else:
-        typer.echo(f"[{CURRENT_DATETIME}] [INFO] {summary}")
+        typer.echo(f"[{CURRENT_DATETIME}] {summary}")
 
     if result.parse_errors:
         typer.echo(f"[{CURRENT_DATETIME}] [ERROR] Parse warnings present — review banner in output.", err=True)
@@ -237,6 +239,11 @@ def generate_cmd(
         "-q",
         help="Suppress progress messages on stderr.",
     ),
+    keep_comments: bool = typer.Option(
+        False,
+        "--keep-comments",
+        help="Retain original line and block comments in the output (stripped by default).",
+    ),
     encoding: Optional[str] = typer.Option(
         None,
         "--encoding",
@@ -250,7 +257,9 @@ def generate_cmd(
     Replaces writes to real tables with SELECT previews and adds PRINT traces on
     variables so you can run the script on a dev database without side effects.
     """
-    _run_generate(input, output, trace_style, no_stub_dml, block_markers, quiet, encoding)
+    _run_generate(
+        input, output, trace_style, no_stub_dml, block_markers, keep_comments, quiet, encoding
+    )
 
 
 def main() -> None:

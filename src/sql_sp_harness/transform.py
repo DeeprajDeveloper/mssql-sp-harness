@@ -23,8 +23,10 @@ from sql_sp_harness.constants import (
     UPDATE_TABLE_VAR,
     UPDATE_TARGET,
 )
+from sql_sp_harness.comments import strip_sql_comments
 from sql_sp_harness.dml_preview import build_dml_preview
 from sql_sp_harness.parse import parse_for_transform, suppress_sqlglot_warnings
+from sql_sp_harness.script_prepare import prepare_for_transform
 from sql_sp_harness.t_sql_scan import find_dml_block_end
 
 
@@ -47,7 +49,7 @@ ProgressCallback = Callable[[str], None]
 
 def _emit_progress(on_progress: ProgressCallback | None, message: str) -> None:
     if on_progress is not None:
-        on_progress(f"[INFO] {message}")
+        on_progress(f"{message}")
 
 
 def _is_table_variable_dml(first_line: str) -> bool:
@@ -248,14 +250,22 @@ def transform_sql(
     trace_style: str = "print",
     stub_dml: bool = True,
     add_block_markers: bool = False,
+    strip_comments: bool = True,
     on_progress: ProgressCallback | None = None,
 ) -> TransformResult:
     """Produce a debug harness script from T-SQL source."""
+    if strip_comments:
+        _emit_progress(on_progress, "Stripping comments from source...")
+        sql = strip_sql_comments(sql)
+
+    _emit_progress(on_progress, "Preparing script (remove deploy preamble, inline parameters)...")
+    sql = prepare_for_transform(sql)
+
     line_count = len(sql.splitlines())
     _emit_progress(on_progress, f"Transform started ({line_count} lines)...")
 
     _emit_progress(on_progress, "Preparing source (strip GO, scan constructs)...")
-    parsed = parse_for_transform(sql)
+    parsed = parse_for_transform(sql, strip_preamble=False)
     stats = TransformStats(warnings=list(parsed.warnings))
 
     lines, line_stats = _apply_line_edits(

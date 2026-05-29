@@ -6,6 +6,12 @@ IF EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_Co
     DROP PROCEDURE [dbo].[usp_ComplexOrderSettlement];
 GO
 
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
 /*
 ================================================================================
  Object:     dbo.usp_ComplexOrderSettlement
@@ -28,6 +34,7 @@ BEGIN
 
     DECLARE @RowCount INT = 0
     DECLARE @CurrentOrderID INT
+    -- introducing status variable to track the status of the procedure
     DECLARE @Status NVARCHAR(20) = N'Pending'
     DECLARE @Queue TABLE (
         OrderID INT NOT NULL PRIMARY KEY,
@@ -72,6 +79,28 @@ BEGIN
                 FROM dbo.Inventory i
                 INNER JOIN dbo.OrderItems oi ON oi.ProductID = i.ProductID
                 WHERE oi.OrderID = @CurrentOrderID
+
+                /**************
+                * Comment block
+                *
+                * More comment lines
+                *
+                * Even more comment lines
+                *
+                * Even more comment lines
+                *
+                * Even more comment lines
+                *
+                * Even more comment lines
+                *
+                * Even more comment lines
+                *
+                * Even more comment lines
+                *
+                * Even more comment lines
+                *
+                * Even more comment lines
+                ***************/
 
                 MERGE dbo.SettlementLog AS tgt
                 USING (SELECT @CurrentOrderID AS OrderID) AS src

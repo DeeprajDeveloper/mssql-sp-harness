@@ -78,7 +78,7 @@ def test_transform_reports_progress():
     messages: list[str] = []
     transform_sql("CREATE PROC dbo.p AS BEGIN SET @x = 1; END", on_progress=messages.append)
     assert messages
-    assert "Transform started" in messages[0]
+    assert any("Transform started" in message for message in messages)
     assert any("complete" in message.lower() for message in messages)
 
 

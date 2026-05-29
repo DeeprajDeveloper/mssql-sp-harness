@@ -10,7 +10,13 @@
 -- Sample: employee bonus stored procedure (used by tests)
 
 IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_ProcessEmployeeBonus]') AND type in (N'P', N'PC'))
-    DROP PROCEDURE [dbo].[usp_ProcessEmployeeBonus];
+    DROP PROCEDURE [dbo].[usp_ProcessEmployeeBonus]
+GO
+
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 
 /*
 ================================================================================
@@ -24,7 +30,7 @@ IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_Pr
 ================================================================================
 */
 
-CREATE PROCEDURE dbo.usp_ProcessEmployeeBonus
+CREATE PROCEDURE [dbo].[usp_ProcessEmployeeBonus]
     @EmployeeID INT,
     @BonusAmount DECIMAL(18, 2)
 AS

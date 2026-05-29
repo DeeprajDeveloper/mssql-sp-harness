@@ -19,7 +19,7 @@ from sql_sp_harness.constants import (
     UPDATE_TARGET,
 )
 from sql_sp_harness.console import failure, heading, success, warning
-from sql_sp_harness.parse import ParseResult, parse_sql, root_tree
+from sql_sp_harness.parse import ParseResult, first_tree, parse_sql, scan_has_structure
 from sql_sp_harness.t_sql_scan import TsqlScanResult, scan_tsql
 
 COUNT_SECTIONS: tuple[tuple[str, str], ...] = (
@@ -466,10 +466,11 @@ def inventory_from_sql(sql: str) -> InventoryReport:
 
 
 def inventory_from_parse(result: ParseResult) -> InventoryReport:
-    tree = root_tree(result)
+    tree = first_tree(result)
     scan = result.scan or scan_tsql(result.source)
+    usable = tree is not None or scan_has_structure(scan)
     report = InventoryReport(
-        is_parsable=result.ok,
+        is_parsable=usable,
         errors=list(result.errors),
         warnings=list(result.warnings),
     )

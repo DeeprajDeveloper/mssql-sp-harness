@@ -21,10 +21,7 @@ SUMMARY_MAX_LEN = 120
 GO_PATTERN = re.compile(r"^\s*GO\s*(--.*)?$", IGNORECASE_MULTILINE)
 
 # --- DML statement detection (line scan & transform) ---
-DML_START = re.compile(
-    r"^\s*(INSERT|UPDATE|DELETE|MERGE)\b",
-    IGNORECASE,
-)
+DML_START = re.compile(r"^\s*(INSERT|UPDATE|DELETE|MERGE)\b", IGNORECASE)
 INSERT_TABLE_VAR = re.compile(r"^\s*INSERT\s+INTO\s+@", IGNORECASE)
 UPDATE_TABLE_VAR = re.compile(r"^\s*UPDATE\s+@", IGNORECASE)
 DELETE_TABLE_VAR = re.compile(r"^\s*DELETE\s+FROM\s+@", IGNORECASE)
@@ -36,10 +33,7 @@ NEW_STMT_AFTER_DML = re.compile(
     IGNORECASE,
 )
 DML_UPDATE_COLUMN_SET = re.compile(r"^\s+SET\s+(?!@)", IGNORECASE)
-DML_UPDATE_CLAUSE = re.compile(
-    r"^\s+(FROM|WHERE|JOIN|INNER|LEFT|RIGHT|FULL|CROSS|OUTPUT)\b",
-    IGNORECASE,
-)
+DML_UPDATE_CLAUSE = re.compile(r"^\s+(FROM|WHERE|JOIN|INNER|LEFT|RIGHT|FULL|CROSS|OUTPUT)\b", IGNORECASE)
 DML_INSERT_CONTINUATION = re.compile(r"^\s+(VALUES|SELECT|DEFAULT)\b", IGNORECASE)
 DML_INSERT_PAREN = re.compile(r"^\s*\(", IGNORECASE)
 DML_DELETE_CLAUSE = re.compile(r"^\s+(FROM|WHERE|JOIN|OUTPUT)\b", IGNORECASE)
@@ -58,20 +52,11 @@ BEGIN_CATCH = re.compile(r"\bBEGIN\s+CATCH\b", IGNORECASE)
 END_CATCH = re.compile(r"\bEND\s+CATCH\b", IGNORECASE)
 
 # --- Transform / harness output ---
-INLINE_SET = re.compile(
-    r"(?P<indent>^|\n)(?P<prefix>.*?)(?P<stmt>SET\s+(?P<var>@\w+)\s*=[^\n;]+(?:;)?)",
-    IGNORECASE_DOTALL,
-)
-SELECT_ASSIGN = re.compile(
-    r"(?P<stmt>SELECT\s+[^;]*@\w+\s*=[^;]+;)",
-    IGNORECASE_DOTALL,
-)
+INLINE_SET = re.compile(r"(?P<indent>^|\n)(?P<prefix>.*?)(?P<stmt>SET\s+(?P<var>@\w+)\s*=[^\n;]+(?:;)?)", IGNORECASE_DOTALL)
+SELECT_ASSIGN = re.compile(r"(?P<stmt>SELECT\s+[^;]*@\w+\s*=[^;]+;)", IGNORECASE_DOTALL)
 SET_VAR_LINE = re.compile(r"^(\s*)SET\s+(@\w+)\s*=", IGNORECASE)
 SET_NOCOUNT = re.compile(r"^\s*SET\s+NOCOUNT\b", IGNORECASE)
-ALREADY_STUBBED = re.compile(
-    r"\[DBG-PREVIEW\]|\[DBG-DISABLED\]|\[DBG\]\s+Skipped",
-    IGNORECASE,
-)
+ALREADY_STUBBED = re.compile(r"\[DBG-PREVIEW\]|\[DBG-DISABLED\]|\[DBG\]\s+Skipped", IGNORECASE)
 LINE_INDENT = re.compile(r"^(\s*)")
 
 # --- DML SELECT preview (dml_preview) ---
@@ -79,10 +64,7 @@ CLAUSE_FROM = re.compile(r"\bFROM\b", IGNORECASE)
 CLAUSE_WHERE = re.compile(r"\bWHERE\b", IGNORECASE)
 CLAUSE_SET = re.compile(r"\bSET\b", IGNORECASE)
 INSERT_INTO_LINE = re.compile(r"^\s*INSERT\s+INTO\s+(\S+)", IGNORECASE)
-DELETE_FROM_LINE = re.compile(
-    r"^\s*DELETE\s+FROM\s+(\S+)(?:\s+WHERE\s+(.+))?\s*;?\s*$",
-    IGNORECASE_DOTALL,
-)
+DELETE_FROM_LINE = re.compile(r"^\s*DELETE\s+FROM\s+(\S+)(?:\s+WHERE\s+(.+))?\s*;?\s*$", IGNORECASE_DOTALL)
 BARE_VAR = re.compile(r"^@\w+$", IGNORECASE)
 QUOTED_LITERAL = re.compile(r"^(N?'([^']|'')*'|\d+(\.\d+)?)$", IGNORECASE)
 

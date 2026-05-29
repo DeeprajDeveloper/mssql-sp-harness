@@ -12,6 +12,7 @@ from sqlglot import exp
 from sqlglot.errors import ParseError
 
 from sql_sp_harness.constants import GO_PATTERN
+from sql_sp_harness.script_prepare import prepare_for_analysis
 from sql_sp_harness.t_sql_scan import TsqlScanResult, scan_tsql
 
 SQLGLOT_LOGGER = logging.getLogger("sqlglot")
@@ -61,8 +62,28 @@ def strip_go_batches(sql: str) -> str:
     return "\n".join(lines)
 
 
-def parse_sql(sql: str) -> ParseResult:
+def _valid_trees(trees: list[exp.Expression | None]) -> list[exp.Expression]:
+    """sqlglot sometimes returns ``[None]`` for comment-only or empty input."""
+    return [tree for tree in trees if tree is not None]
+
+
+def scan_has_structure(scan: TsqlScanResult) -> bool:
+    """True when text scan found analyzable procedure structure."""
+    return bool(scan.dml_findings or scan.try_catch_findings)
+
+
+def first_tree(result: ParseResult) -> exp.Expression | None:
+    """Return the first usable sqlglot tree, if any."""
+    for tree in result.trees:
+        if tree is not None:
+            return tree
+    return None
+
+
+def parse_sql(sql: str, *, strip_preamble: bool = True) -> ParseResult:
     """Parse T-SQL; collect trees and non-fatal warnings."""
+    if strip_preamble:
+        sql = prepare_for_analysis(sql)
     cleaned = strip_go_batches(sql)
     warnings: list[str] = []
     errors: list[str] = []
@@ -72,15 +93,24 @@ def parse_sql(sql: str) -> ParseResult:
 
     try:
         with suppress_sqlglot_warnings():
-            trees = list(sqlglot.parse(cleaned, read="tsql"))
+            trees = _valid_trees(list(sqlglot.parse(cleaned, read="tsql")))
     except ParseError as exc:
         errors.append(str(exc))
+        if scan_has_structure(scan):
+            warnings.append(
+                "[ParseWarning] sqlglot could not build an AST; counts and details use text scan."
+            )
         return ParseResult(
             source=cleaned, trees=[], errors=errors, warnings=warnings, scan=scan
         )
 
     if not trees:
-        errors.append("[ParseError] No statements parsed from input.")
+        if scan_has_structure(scan):
+            warnings.append(
+                "[ParseWarning] sqlglot could not build an AST; counts and details use text scan."
+            )
+        else:
+            errors.append("[ParseError] No statements parsed from input.")
         return ParseResult(
             source=cleaned, trees=[], errors=errors, warnings=warnings, scan=scan
         )
@@ -93,12 +123,14 @@ def parse_sql(sql: str) -> ParseResult:
     return ParseResult(source=cleaned, trees=trees, errors=errors, warnings=warnings, scan=scan)
 
 
-def parse_for_transform(sql: str) -> ParseResult:
+def parse_for_transform(sql: str, *, strip_preamble: bool = True) -> ParseResult:
     """Fast parse for transform: strip GO + text scan only (no sqlglot AST).
 
     Transform uses line-based rewriting, so a full AST parse is unnecessary and
     can be very slow on large enterprise procedures.
     """
+    if strip_preamble:
+        sql = prepare_for_analysis(sql)
     cleaned = strip_go_batches(sql)
     scan = scan_tsql(cleaned)
     warnings: list[str] = list(scan.notes)
@@ -110,7 +142,5 @@ def parse_for_transform(sql: str) -> ParseResult:
 
 
 def root_tree(result: ParseResult) -> exp.Expression | None:
-    if not result.trees:
-        result.errors.append("[ParseError] No trees parsed from input.")
-        return None
-    return result.trees[0]
+    """Return the first sqlglot tree (alias for :func:`first_tree`)."""
+    return first_tree(result)

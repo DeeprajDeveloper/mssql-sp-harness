@@ -53,6 +53,10 @@ With traces in the Messages tab (default):
 sql-sp-harness generate -i MyProc.sql -o MyProc_debug.sql --trace-style print
 ```
 
+By default, `generate` removes original line (`--`) and block (`/* */`) comments from the output. Use `--keep-comments` to preserve them (harness `[DBG-*]` markers are always added).
+
+Deploy preamble (`IF EXISTS` / `DROP PROCEDURE`, `SET ANSI_NULLS`, `SET QUOTED_IDENTIFIER`) is removed for both `analyze` and `generate`. `generate` also rewrites `CREATE PROCEDURE` into `DECLARE` parameters so the script does not create the procedure on the server.
+
 ## Development
 
 ```bash
