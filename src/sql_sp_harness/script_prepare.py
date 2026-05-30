@@ -4,6 +4,20 @@ from __future__ import annotations
 
 import re
 
+from sql_sp_harness.constants import (
+    CREATE_PROC,
+    CREATE_PROC_INLINE,
+    AS_LINE,
+    PROC_PARAM_WITH_DEFAULT,
+    PROC_PARAM_PLAIN,
+    AS_BEGIN_REST,
+    IF_EXISTS,
+    DROP_PROCEDURE,
+    SET_ANSI_NULLS,
+    SET_QUOTED_IDENTIFIER,
+    STANDALONE_DROP_PROC,
+)
+
 
 def _split_param_list(text: str) -> list[str]:
     """Split a parameter list on commas (parenthesis-aware)."""
@@ -26,25 +40,6 @@ def _split_param_list(text: str) -> list[str]:
     if tail:
         parts.append(tail)
     return parts
-
-
-IF_EXISTS = re.compile(r"^\s*IF\s+EXISTS\b", re.IGNORECASE)
-DROP_PROCEDURE = re.compile(r"\bDROP\s+PROC(?:EDURE)?\b", re.IGNORECASE)
-SET_ANSI_NULLS = re.compile(r"^\s*SET\s+ANSI_NULLS\b", re.IGNORECASE)
-SET_QUOTED_IDENTIFIER = re.compile(r"^\s*SET\s+QUOTED_IDENTIFIER\b", re.IGNORECASE)
-STANDALONE_DROP_PROC = re.compile(r"^\s*DROP\s+PROC(?:EDURE)?\b", re.IGNORECASE)
-CREATE_PROC = re.compile(
-    r"^\s*CREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\s+(\S+)",
-    re.IGNORECASE,
-)
-CREATE_PROC_INLINE = re.compile(
-    r"^\s*CREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\s+(\S+)\s+(.+)$",
-    re.IGNORECASE,
-)
-AS_LINE = re.compile(r"^\s*AS\s*(?:BEGIN)?\s*;?\s*$", re.IGNORECASE)
-PROC_PARAM_WITH_DEFAULT = re.compile(r"^(@\w+)\s+(.+)\s+=\s*(.+)$", re.IGNORECASE)
-PROC_PARAM_PLAIN = re.compile(r"^(@\w+)\s+(.+)$", re.IGNORECASE)
-AS_BEGIN_REST = re.compile(r"^\s*AS\s+BEGIN\s*(.*)$", re.IGNORECASE)
 
 
 def strip_deploy_preamble(sql: str) -> str:

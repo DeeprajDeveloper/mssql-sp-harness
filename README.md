@@ -57,6 +57,17 @@ By default, `generate` removes original line (`--`) and block (`/* */`) comments
 
 Deploy preamble (`IF EXISTS` / `DROP PROCEDURE`, `SET ANSI_NULLS`, `SET QUOTED_IDENTIFIER`) is removed for both `analyze` and `generate`. `generate` also rewrites `CREATE PROCEDURE` into `DECLARE` parameters so the script does not create the procedure on the server.
 
+### Step log (audit trail)
+
+Use `--log` to write a timestamped log beside the input (`MyProc.log`), or `--log-file path/to/run.log` for a custom path. Works with both `analyze` and `generate`; logs file read, each transform step, DML stub line ranges, trace injection counts, and warnings.
+
+```bash
+sql-sp-harness generate -i MyProc.sql -o MyProc_debug.sql --log
+sql-sp-harness analyze -i MyProc.sql --log-file /tmp/myproc-analyze.log
+```
+
+With `--log`, progress still prints to stderr unless you also pass `--quiet` (the log file always receives full detail).
+
 ## Development
 
 ```bash
