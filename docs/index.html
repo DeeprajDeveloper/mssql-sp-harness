@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta
+			name="description"
+			content="sql-sp-harness turns SQL Server stored procedures into safe debug scripts with DML previews and variable traces."
+		/>
+		<title>sql-sp-harness — T-SQL Stored Procedure Debug Harness</title>
+		<script>
+			(function () {
+				var key = "sql-sp-harness-theme";
+				var stored = localStorage.getItem(key);
+				var theme =
+					stored === "light" || stored === "dark"
+						? stored
+						: window.matchMedia("(prefers-color-scheme: light)").matches
+							? "light"
+							: "dark";
+				document.documentElement.setAttribute("data-theme", theme);
+			})();
+		</script>
+    <link rel="stylesheet" href="./scss/css/styles.css" />
+	</head>
+	<body>
+		<div class="layout">
+			<aside class="sidebar" id="sidebar">
+				<a class="brand" href="#">
+					<img src="./logo.png" alt="sql-sp-harness" height="32" />
+					<span class="brand-text">sql-sp-harness</span>
+				</a>
+				<div class="divider"></div>
+				<nav class="sidebar-nav" aria-label="Primary">
+					<a class="nav-item" href="#features">What it does ?</a>
+					<a class="nav-item" href="#how-it-works">How it works ?</a>
+					<a class="nav-item" href="#commands">Commands Available</a>
+					<a class="nav-item" href="#install">Install &amp; quick start</a>
+					<a class="nav-item" href="#limitations">Limitations</a>
+					<div class="sidebar-actions">
+						<a
+							class="sidebar-btn"
+							href="https://github.com/DeeprajDeveloper/sql-sp-harness"
+							target="_blank"
+							rel="noopener noreferrer"
+							aria-label="View project on GitHub"
+              title="View project on GitHub"
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								fill="#000000"
+								class="bi bi-github"
+								viewBox="0 0 20 20"
+								id="Github--Streamline-Bootstrap"
+								height="20"
+								width="20"
+							>
+								<path
+									fill="currentColor"
+									d="M10 0C4.475 0 0 4.475 0 10c0 4.425 2.8625 8.1625 6.8374999999999995 9.4875 0.5 0.08750000000000001 0.6875 -0.21250000000000002 0.6875 -0.475 0 -0.2375 -0.0125 -1.025 -0.0125 -1.8625 -2.5124999999999997 0.4625 -3.1624999999999996 -0.6125 -3.3625 -1.1749999999999998 -0.11249999999999999 -0.28750000000000003 -0.6 -1.1749999999999998 -1.025 -1.4124999999999999 -0.35000000000000003 -0.1875 -0.8500000000000001 -0.65 -0.0125 -0.6625000000000001 0.7875 -0.0125 1.35 0.725 1.5375 1.025 0.8999999999999999 1.5125 2.3375000000000004 1.0875 2.9125 0.8250000000000001 0.08750000000000001 -0.65 0.35000000000000003 -1.0875 0.6375 -1.3375000000000001 -2.225 -0.25 -4.55 -1.1125 -4.55 -4.9375 0 -1.0875 0.3875 -1.9875 1.025 -2.6875 -0.1 -0.25 -0.44999999999999996 -1.275 0.1 -2.6500000000000004 0 0 0.8375 -0.2625 2.75 1.025 0.8 -0.22499999999999998 1.6500000000000001 -0.3375 2.5 -0.3375s1.7000000000000002 0.11249999999999999 2.5 0.3375c1.9125 -1.3 2.75 -1.025 2.75 -1.025 0.55 1.375 0.2 2.4 0.1 2.6500000000000004 0.6375 0.7000000000000001 1.025 1.5875 1.025 2.6875 0 3.8375 -2.3375000000000004 4.6875 -4.5625 4.9375 0.3625 0.3125 0.675 0.9125 0.675 1.85 0 1.3375000000000001 -0.0125 2.4125 -0.0125 2.75 0 0.2625 0.1875 0.5750000000000001 0.6875 0.475A10.0125 10.0125 0 0 0 20 10c0 -5.525 -4.475 -10 -10 -10"
+									stroke-width="1.25"
+								></path>
+							</svg>
+						</a>
+						<button
+							type="button"
+							class="sidebar-btn"
+							id="theme-toggle"
+							aria-label="Switch to light theme"
+              title="Switch to light theme"
+							aria-pressed="false"
+						>
+							<svg
+								class="theme-icon theme-icon--sun"
+								xmlns="http://www.w3.org/2000/svg"
+								fill="#000000"
+								class="bi bi-lightbulb"
+								viewBox="0 0 20 20"
+								id="Lightbulb--Streamline-Bootstrap"
+								height="20"
+								width="20"
+							>
+								<path
+									fill="currentColor"
+									d="M2.5 7.5a7.5 7.5 0 1 1 12.7175 5.387499999999999c-0.25375000000000003 0.245 -0.44875 0.5 -0.56625 0.7737499999999999l-0.9525 2.2112499999999997A0.625 0.625 0 0 1 13.125 16.25a0.625 0.625 0 0 1 0 1.25 0.625 0.625 0 0 1 0 1.25l-0.28 0.55875a1.25 1.25 0 0 1 -1.1175 0.69125H8.2725a1.25 1.25 0 0 1 -1.1175 -0.69125L6.875 18.75a0.625 0.625 0 0 1 0 -1.25 0.625 0.625 0 0 1 0 -1.25 0.625 0.625 0 0 1 -0.5750000000000001 -0.3775l-0.95125 -2.2125a2.5 2.5 0 0 0 -0.56625 -0.7725A7.4750000000000005 7.4750000000000005 0 0 1 2.5 7.5m7.5 -6.25a6.25 6.25 0 0 0 -4.34875 10.74c0.32875 0.3175 0.6425000000000001 0.705 0.8450000000000001 1.17625L7.2875 15h5.427499999999999l0.79 -1.8337500000000002c0.2025 -0.47125 0.51625 -0.8587500000000001 0.8450000000000001 -1.17625A6.25 6.25 0 0 0 10 1.25"
+									stroke-width="1.25"
+								></path>
+							</svg>
+							<svg
+								class="theme-icon theme-icon--moon"
+								xmlns="http://www.w3.org/2000/svg"
+								fill="#000000"
+								class="bi bi-lightbulb-off"
+								viewBox="0 0 20 20"
+								id="Lightbulb-Off--Streamline-Bootstrap"
+								height="20"
+								width="20"
+							>
+								<path
+									fill="currentColor"
+									d="M2.7875 5.4375A7.5 7.5 0 0 0 2.5 7.5c0 2.11375 0.875 4.025 2.2825 5.387499999999999 0.25375000000000003 0.245 0.44875 0.5 0.56625 0.7737499999999999l0.9525 2.2112499999999997A0.625 0.625 0 0 0 6.875 16.25a0.625 0.625 0 0 0 0 1.25 0.625 0.625 0 0 0 0 1.25l0.28 0.55875a1.25 1.25 0 0 0 1.1175 0.69125h3.4549999999999996a1.25 1.25 0 0 0 1.1175 -0.69125L13.125 18.75a0.625 0.625 0 0 0 0 -1.25 0.625 0.625 0 0 0 0 -1.25 0.625 0.625 0 0 0 0.36 -0.11374999999999999L12.3475 15H7.2875l-0.79 -1.8337500000000002a3.75 3.75 0 0 0 -0.8450000000000001 -1.17625 6.2250000000000005 6.2250000000000005 0 0 1 -1.81875 -5.5062500000000005zm1.985 -3.31625 0.885 0.8837499999999999a6.25 6.25 0 0 1 8.8375 8.8375l0.8837499999999999 0.8837499999999999a7.5 7.5 0 0 0 -10.605 -10.605zm-2.7150000000000003 -0.06375a0.625 0.625 0 0 1 0.885 0l15 15a0.625 0.625 0 0 1 -0.885 0.885l-15 -15a0.625 0.625 0 0 1 0 -0.885"
+									stroke-width="1.25"
+								></path>
+							</svg>
+						</button>
+						<a
+							class="sidebar-btn"
+							href="https://github.com/DeeprajDeveloper/sql-sp-harness/issues/new"
+							target="_blank"
+							rel="noopener noreferrer"
+							aria-label="Report a bug on GitHub"
+              title="Report a bug on GitHub"
+						>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" id="Pest-Control-Fill--Streamline-Sharp-Fill-Material" height="24" width="24">
+              <path fill="currentColor" d="M12 21c-1.05 0 -2.00415 -0.29585 -2.8625 -0.8875 -0.85835 -0.59165 -1.55415 -1.35415 -2.0875 -2.2875l-2.5 1.425 -0.75 -1.275 2.625 -1.525c-0.08335 -0.28335 -0.15835 -0.56665 -0.225 -0.85 -0.06665 -0.28335 -0.11665 -0.56665 -0.15 -0.85H3v-1.5h3.05c0.03335 -0.28335 0.08335 -0.56665 0.15 -0.85s0.14165 -0.56665 0.225 -0.85L3.8 10l0.75 -1.275 2.475 1.45c0.15 -0.26665 0.31665 -0.5125 0.5 -0.7375 0.18335 -0.225 0.375 -0.44585 0.575 -0.6625 -0.03335 -0.13335 -0.05835 -0.2625 -0.075 -0.3875 -0.01665 -0.125 -0.025 -0.25415 -0.025 -0.3875 0 -0.46665 0.0875 -0.92085 0.2625 -1.3625 0.175 -0.44165 0.42085 -0.8375 0.7375 -1.1875l-1.65 -1.625 1.05 -1.075L10.175 4.5c0.28335 -0.166665 0.575 -0.291665 0.875 -0.375 0.3 -0.083335 0.61665 -0.125 0.95 -0.125 0.33335 0 0.65 0.041665 0.95 0.125 0.3 0.083335 0.59165 0.208335 0.875 0.375l1.775 -1.75 1.05 1.075 -1.65 1.65c0.3 0.35 0.5375 0.74165 0.7125 1.175 0.175 0.43335 0.2625 0.88335 0.2625 1.35 0 0.13335 -0.00415 0.25835 -0.0125 0.375 -0.00835 0.11665 -0.02915 0.24165 -0.0625 0.375 0.2 0.21665 0.3875 0.4375 0.5625 0.6625 0.175 0.225 0.3375 0.47085 0.4875 0.7375l2.5 -1.4 0.75 1.275 -2.625 1.5c0.1 0.28335 0.17915 0.56665 0.2375 0.85 0.05835 0.28335 0.10415 0.575 0.1375 0.875H21v1.5h-3.05c-0.03335 0.28335 -0.07915 0.57085 -0.1375 0.8625 -0.05835 0.29165 -0.1375 0.57915 -0.2375 0.8625L20.2 18l-0.75 1.275 -2.5 -1.45c-0.53335 0.93335 -1.22915 1.69585 -2.0875 2.2875S13.05 21 12 21Zm-2.475 -13.35c0.38335 -0.21665 0.78335 -0.37915 1.2 -0.4875 0.41665 -0.10835 0.84165 -0.1625 1.275 -0.1625 0.43335 0 0.85415 0.05415 1.2625 0.1625s0.80415 0.2625 1.1875 0.4625c-0.1 -0.55 -0.39165 -1.04165 -0.875 -1.475 -0.48335 -0.43335 -1.00835 -0.65 -1.575 -0.65 -0.56665 0 -1.09585 0.21665 -1.5875 0.65 -0.49165 0.43335 -0.7875 0.93335 -0.8875 1.5ZM12 19.5c1.28335 0 2.35415 -0.575 3.2125 -1.725C16.07085 16.625 16.5 15.36665 16.5 14c0 -1.25 -0.40415 -2.47915 -1.2125 -3.6875C14.47915 9.10415 13.38335 8.5 12 8.5s-2.47915 0.60415 -3.2875 1.8125C7.90415 11.52085 7.5 12.75 7.5 14c0 1.36665 0.42915 2.625 1.2875 3.775C9.64585 18.925 10.71665 19.5 12 19.5Zm-0.75 -2.5V11h1.5v6h-1.5Z" stroke-width="0.5"></path>
+            </svg>
+						</a>
+					</div>
+				</nav>
+
+				<footer class="site-footer">
+					<div class="footer-container">
+						<span
+							><strong>License:</strong>
+							<a
+								href="https://github.com/DeeprajDeveloper/sql-sp-harness/blob/master/LICENSE"
+								target="_blank"
+								rel="noopener noreferrer"
+								>Open-source MIT</a
+							></span
+						>
+						<span
+							><strong>Package:</strong>
+							<a
+								href="https://pypi.org/project/sql-sp-harness/"
+								target="_blank"
+								rel="noopener noreferrer"
+								>sql-sp-harness</a
+							></span
+						>
+					</div>
+				</footer>
+			</aside>
+
+			<div
+				class="sidebar-backdrop"
+				id="sidebar-backdrop"
+				aria-hidden="true"
+			></div>
+
+			<div class="layout-main">
+				<header class="mobile-bar">
+					<button
+						type="button"
+						class="menu-toggle"
+						id="menu-toggle"
+						aria-expanded="false"
+						aria-controls="sidebar"
+					>
+						Menu
+					</button>
+				</header>
+				<main>
+					<section class="hero">
+						<div class="container">
+							<p class="hero-title">
+								A Utility to create safe debuggable harness for T-SQL stored
+								procedures
+							</p>
+							<p class="lead">
+								Turn SQL Server stored procedures into
+								<strong>runnable debuggable scripts</strong> for pre-production
+								SQL Server - DML replaced with <code>SELECT</code> previews,
+								variables traced with <code>PRINT</code>, no writes to real
+								tables.
+							</p>
+							<div class="badges">
+								<span class="badge">Python 3.10+</span>
+								<span class="badge">CLI · analyze &amp; generate</span>
+								<span class="badge">MIT License</span>
+							</div>
+							<div class="cta-row">
+								<a class="btn btn-primary" href="#install">Install from PyPI</a>
+								<a
+									class="btn btn-secondary"
+									href="https://github.com/DeeprajDeveloper/sql-sp-harness"
+									>View on GitHub</a
+								>
+							</div>
+						</div>
+					</section>
+
+					<section id="features">
+						<div class="container">
+							<h2>What it does ?</h2>
+							<p class="section-intro">
+								Not a live debugger — a
+								<strong>static harness generator</strong> you review, then run
+								on a dev database. Output is stamped
+								<strong>DEBUG HARNESS — DO NOT RUN ON PRODUCTION</strong>.
+							</p>
+							<div class="card-grid">
+								<article class="card">
+									<h3>analyze</h3>
+									<p>
+										Inventory DML, TRY/CATCH, loops, SET statements, and
+										line-level detail before you generate a harness.
+									</p>
+								</article>
+								<article class="card">
+									<h3>generate</h3>
+									<p>
+										Build a debug script: stub real-table DML, add traces, strip
+										deploy preamble, inline procedure parameters as
+										<code>DECLARE</code>.
+									</p>
+								</article>
+								<article class="card">
+									<h3>Enterprise-ready I/O</h3>
+									<p>
+										Auto-detect UTF-16 (SSMS Unicode) and Windows-1252
+										encodings. Optional step-by-step <code>--log</code> audit
+										files.
+									</p>
+								</article>
+							</div>
+						</div>
+					</section>
+
+					<section id="how-it-works">
+						<div class="container">
+							<h2>How it works ?</h2>
+							<p class="section-intro">
+								Line scanning supplements sqlglot where TRY/CATCH and complex
+								T-SQL hide DML from the AST.
+							</p>
+							<div
+								class="flow"
+								role="img"
+								aria-label="Input SQL, transform, safe harness output"
+							>
+								<div class="flow-step">
+									<strong>Your .sql file</strong>
+									CREATE PROC, TRY/CATCH, loops, MERGE, SSMS exports
+								</div>
+								<span class="flow-arrow" aria-hidden="true">→</span>
+								<div class="flow-step">
+									<strong>sql-sp-harness</strong>
+									Analyze or generate · comments &amp; preamble optional
+								</div>
+								<span class="flow-arrow" aria-hidden="true">→</span>
+								<div class="flow-step">
+									<strong>Debug script</strong>
+									SELECT previews · PRINT traces · no CREATE PROC
+								</div>
+							</div>
+							<div class="callout">
+								⚠️ <strong>Always review</strong> generated scripts before running
+								on a shared server. Dynamic SQL, cursors, and encrypted
+								procedures are not fully rewritten.
+							</div>
+						</div>
+					</section>
+
+					<section id="commands">
+						<div class="container">
+							<h2>Commands Available</h2>
+							<div class="table-wrap">
+								<table>
+									<thead>
+										<tr>
+											<th>Command</th>
+											<th>Description</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td><code>analyze</code></td>
+											<td>
+												Structural report — DML counts, TRY/CATCH, IF/WHILE,
+												identified statements
+											</td>
+										</tr>
+										<tr>
+											<td><code>generate</code></td>
+											<td>
+												Produce <code>*_debug.sql</code> harness with previews
+												and traces
+											</td>
+										</tr>
+										<tr>
+											<td><code>version</code></td>
+											<td>Print installed package version</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+
+							<h2 style="margin-top: 2rem">Common options</h2>
+							<div class="table-wrap">
+								<table>
+									<thead>
+										<tr>
+											<th>Flag</th>
+											<th>Applies to</th>
+											<th>Purpose</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td><code>--trace-style print|raiserror</code></td>
+											<td>generate</td>
+											<td>Variable trace output (default: print)</td>
+										</tr>
+										<tr>
+											<td><code>--keep-comments</code></td>
+											<td>generate</td>
+											<td>
+												Keep original <code>--</code> and
+												<code>/* */</code> comments
+											</td>
+										</tr>
+										<tr>
+											<td><code>--block-markers</code></td>
+											<td>generate</td>
+											<td>Insert <code>[DBG] Step N</code> before IF/WHILE</td>
+										</tr>
+										<tr>
+											<td><code>--log</code> / <code>--log-file</code></td>
+											<td>both</td>
+											<td>Timestamped step log for transforms and analysis</td>
+										</tr>
+										<tr>
+											<td><code>--encoding</code></td>
+											<td>both</td>
+											<td>Force utf-8, utf-16-le, cp1252, etc.</td>
+										</tr>
+										<tr>
+											<td><code>--no-stub-dml</code></td>
+											<td>generate</td>
+											<td>Traces only; leave DML unchanged</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</section>
+
+					<section id="install">
+						<div class="container">
+							<h2>Install &amp; Quick Start</h2>
+							<p class="section-intro">Requires <code style="font-size: 0.8rem;">Python 3.10+</code> or newer.</p>
+							<pre><code># Step 1: Install the package
+pip install sql-sp-harness
+
+# Step 2: Verify the installation
+sql-sp-harness version
+
+# Step 3: Analyze / generate the procedure
+sql-sp-harness analyze -i MyProc.sql
+sql-sp-harness generate -i MyProc.sql -o MyProc_debug.sql
+
+# Optional: step log beside input
+sql-sp-harness generate -i MyProc.sql -o MyProc_debug.sql --log</code></pre>
+							<p
+								style="
+									margin-top: 1rem;
+									color: var(--muted);
+									font-size: 0.8rem;
+								"
+							>
+								Module invocation:
+								<code>python -m sql_sp_harness analyze -i MyProc.sql</code>
+							</p>
+						</div>
+					</section>
+
+					<section id="limitations">
+						<div class="container">
+							<h2>Limitations</h2>
+							<div class="table-wrap">
+								<table>
+									<thead>
+										<tr>
+											<th>Pattern</th>
+											<th>Behavior</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td>Dynamic SQL</td>
+											<td>Not analyzed or rewritten</td>
+										</tr>
+										<tr>
+											<td>Encrypted procedures</td>
+											<td>No source available</td>
+										</tr>
+										<tr>
+											<td>Cursors</td>
+											<td>Not rewritten</td>
+										</tr>
+										<tr>
+											<td>DDL inside proc</td>
+											<td>Not stubbed</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+							<p class="section-intro" style="margin-top: 1.25rem">
+								Not affiliated with Microsoft. “SQL Server” and T-SQL are used
+								descriptively only.
+							</p>
+						</div>
+					</section>
+				</main>
+			</div>
+		</div>
+		<script src="theme.js"></script>
+	</body>
+</html>

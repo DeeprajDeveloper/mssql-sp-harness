@@ -12,6 +12,8 @@
 
 **T-SQL Stored Procedure Debug Harness** — turn SQL Server stored procedures into **safe, runnable debug scripts** you can execute on a pre-production database without writing to real tables.
 
+**Documentation site:** [https://deeprajdeveloper.github.io/sql-sp-harness/](https://deeprajdeveloper.github.io/sql-sp-harness/) (GitHub Pages). Site styles: `docs/scss/` → compile with `npx sass docs/scss/styles.scss docs/scss/css/styles.css`.
+
 > Not a live debugger. This tool generates a **static test harness** (DML previews + variable traces), not breakpoints or step-into debugging.
 >
 > Not affiliated with Microsoft. "SQL Server" and T-SQL are used descriptively only.
