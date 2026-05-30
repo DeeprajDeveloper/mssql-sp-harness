@@ -24,6 +24,20 @@ def test_strip_multiline_block():
     assert strip_sql_comments(sql) == "SET @x = 1\n"
 
 
+def test_strip_star_banner_block_comment():
+    """SSMS-style /******* ... *******/ banners still use /* ... */ delimiters."""
+    sql = """                /**************
+                * Comment block
+                * More comment lines
+                ***************/
+                MERGE dbo.T AS tgt
+"""
+    out = strip_sql_comments(sql)
+    assert "Comment block" not in out
+    assert "MERGE dbo.T AS tgt" in out
+    assert "/*" not in out
+
+
 def test_transform_strips_revision_block_by_default():
     sql = (SAMPLES / "enterprise_complex_proc.sql").read_text(encoding="utf-8")
     result = transform_sql(sql)

@@ -1,4 +1,4 @@
 """T-SQL stored procedure debug harness — safe SQL test-harness generator."""
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 __pypi_name__ = "sql-sp-harness"

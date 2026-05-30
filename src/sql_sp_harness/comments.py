@@ -4,30 +4,35 @@ from __future__ import annotations
 
 
 def strip_line_comment(line: str) -> str:
-    """Remove trailing ``--`` comment from a line (respects single-quoted strings)."""
+    """Remove trailing ``--`` comment from a line (string-aware, not full-line-only)."""
     out: list[str] = []
     i = 0
     in_string = False
     while i < len(line):
-        ch = line[i]
-        if ch == "'":
+        character_value = line[i]
+        if character_value == "'":
             if in_string and i + 1 < len(line) and line[i + 1] == "'":
                 out.append("''")
                 i += 2
                 continue
             in_string = not in_string
-            out.append(ch)
+            out.append(character_value)
             i += 1
             continue
-        if not in_string and ch == "-" and i + 1 < len(line) and line[i + 1] == "-":
+        if not in_string and character_value == "-" and i + 1 < len(line) and line[i + 1] == "-":
             break
-        out.append(ch)
+        out.append(character_value)
         i += 1
     return "".join(out)
 
 
 def strip_block_comments_on_line(line: str, in_block_comment: bool) -> tuple[str, bool]:
-    """Remove block/line comments from one line; return (text, still_inside_block)."""
+    """
+    Remove block/line comments from one line; return (text, still_inside_block).
+    
+    examples:
+        "/* comment */ SELECT 1" -> "SELECT 1"
+    """
     if in_block_comment:
         end = line.find("*/")
         if end == -1:

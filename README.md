@@ -12,6 +12,8 @@
 
 **T-SQL Stored Procedure Debug Harness** — turn SQL Server stored procedures into **safe, runnable debug scripts** you can execute on a pre-production database without writing to real tables.
 
+**Documentation site:** [https://deeprajdeveloper.github.io/sql-sp-harness/](https://deeprajdeveloper.github.io/sql-sp-harness/) (GitHub Pages). Site styles: `docs/scss/` → compile with `npx sass docs/scss/styles.scss docs/scss/css/styles.css`.
+
 > Not a live debugger. This tool generates a **static test harness** (DML previews + variable traces), not breakpoints or step-into debugging.
 >
 > Not affiliated with Microsoft. "SQL Server" and T-SQL are used descriptively only.
@@ -56,6 +58,17 @@ sql-sp-harness generate -i MyProc.sql -o MyProc_debug.sql --trace-style print
 By default, `generate` removes original line (`--`) and block (`/* */`) comments from the output. Use `--keep-comments` to preserve them (harness `[DBG-*]` markers are always added).
 
 Deploy preamble (`IF EXISTS` / `DROP PROCEDURE`, `SET ANSI_NULLS`, `SET QUOTED_IDENTIFIER`) is removed for both `analyze` and `generate`. `generate` also rewrites `CREATE PROCEDURE` into `DECLARE` parameters so the script does not create the procedure on the server.
+
+### Step log (audit trail)
+
+Use `--log` to write a timestamped log beside the input (`MyProc.log`), or `--log-file path/to/run.log` for a custom path. Works with both `analyze` and `generate`; logs file read, each transform step, DML stub line ranges, trace injection counts, and warnings.
+
+```bash
+sql-sp-harness generate -i MyProc.sql -o MyProc_debug.sql --log
+sql-sp-harness analyze -i MyProc.sql --log-file /tmp/myproc-analyze.log
+```
+
+With `--log`, progress still prints to stderr unless you also pass `--quiet` (the log file always receives full detail).
 
 ## Development
 

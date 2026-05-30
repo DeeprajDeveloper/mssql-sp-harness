@@ -74,3 +74,42 @@ DETAIL_LINE_STRIP = re.compile(r"^L\d+:\s*")
 DETAIL_BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
 
 CALCULATION_PATTERN = re.compile(r"[\+\-\*/%]|^\w+\(", IGNORECASE)
+
+IF_EXISTS = re.compile(r"^\s*IF\s+EXISTS\b", IGNORECASE)
+DROP_PROCEDURE = re.compile(r"\bDROP\s+PROC(?:EDURE)?\b", IGNORECASE)
+SET_ANSI_NULLS = re.compile(r"^\s*SET\s+ANSI_NULLS\b", IGNORECASE)
+SET_QUOTED_IDENTIFIER = re.compile(r"^\s*SET\s+QUOTED_IDENTIFIER\b", IGNORECASE)
+STANDALONE_DROP_PROC = re.compile(r"^\s*DROP\s+PROC(?:EDURE)?\b", IGNORECASE)
+CREATE_PROC = re.compile(
+    r"^\s*CREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\s+(\S+)",
+    IGNORECASE,
+)
+CREATE_PROC_INLINE = re.compile(
+    r"^\s*CREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\s+(\S+)\s+(.+)$",
+    IGNORECASE,
+)
+AS_LINE = re.compile(r"^\s*AS\s*(?:BEGIN)?\s*;?\s*$", IGNORECASE)
+PROC_PARAM_WITH_DEFAULT = re.compile(r"^(@\w+)\s+(.+)\s+=\s*(.+)$", IGNORECASE)
+PROC_PARAM_PLAIN = re.compile(r"^(@\w+)\s+(.+)$", IGNORECASE)
+AS_BEGIN_REST = re.compile(r"^\s*AS\s+BEGIN\s*(.*)$", IGNORECASE)
+
+
+APP_HELP = """
+Turn a T-SQL stored procedure into a safe, runnable debug script.
+
+\b
+Commands:
+  analyze    See what a stored procedure does (DML, TRY/CATCH, loops, variables)
+  generate   Create a debug harness script safe to run on a development database
+
+\b
+Quick start:
+  sql-sp-harness analyze -i MyProc.sql
+  sql-sp-harness generate -i MyProc.sql -o MyProc_debug.sql
+
+\b
+More help:
+  sql-sp-harness analyze --help
+  sql-sp-harness generate --help
+"""
+

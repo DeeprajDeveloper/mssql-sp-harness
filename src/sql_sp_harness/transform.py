@@ -214,15 +214,25 @@ def _apply_line_edits(
             block = lines[start : end + 1]
             indent_match = LINE_INDENT.match(block[0])
             indent = indent_match.group(1) if indent_match else ""
+            kind = block[0].strip().split()[0].upper()
+            preview = " ".join(block[0].strip().split())[:100]
+            _emit_progress(
+                on_progress,
+                f"Stubbing {kind} lines {start + 1}-{end + 1}: {preview}",
+            )
             replacement = _replace_dml_block(block, indent)
+            preview_kind = "SELECT preview" if replacement and "[DBG-PREVIEW]" in replacement[0] else "disabled stub"
+            _emit_progress(on_progress, f"  -> {preview_kind} ({len(replacement)} line(s))")
             lines[start : end + 1] = replacement
             stats.dml_stubbed += 1
 
     _emit_progress(on_progress, "Injecting SET variable traces...")
     text = "\n".join(lines)
     text, set_traces = _inject_set_traces(text, trace_style)
+    _emit_progress(on_progress, f"  -> added {set_traces} SET trace(s) (style={trace_style})")
     _emit_progress(on_progress, "Injecting SELECT assignment traces...")
     text, select_traces = _inject_select_traces(text, trace_style)
+    _emit_progress(on_progress, f"  -> added {select_traces} SELECT @assign trace(s)")
     stats.traces_added += set_traces + select_traces
     lines = text.splitlines()
 
@@ -257,6 +267,8 @@ def transform_sql(
     if strip_comments:
         _emit_progress(on_progress, "Stripping comments from source...")
         sql = strip_sql_comments(sql)
+    else:
+        _emit_progress(on_progress, "Keeping original comments (--keep-comments)")
 
     _emit_progress(on_progress, "Preparing script (remove deploy preamble, inline parameters)...")
     sql = prepare_for_transform(sql)
@@ -267,6 +279,15 @@ def transform_sql(
     _emit_progress(on_progress, "Preparing source (strip GO, scan constructs)...")
     parsed = parse_for_transform(sql, strip_preamble=False)
     stats = TransformStats(warnings=list(parsed.warnings))
+    scan = parsed.scan
+    if scan is not None:
+        _emit_progress(
+            on_progress,
+            f"Text scan: INSERT={scan.insert} UPDATE={scan.update} DELETE={scan.delete} "
+            f"MERGE={scan.merge} TRY/CATCH={scan.try_catch_blocks}",
+        )
+    for warning in parsed.warnings:
+        _emit_progress(on_progress, f"Warning: {warning}")
 
     lines, line_stats = _apply_line_edits(
         parsed.source.splitlines(),
