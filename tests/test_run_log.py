@@ -25,7 +25,7 @@ def test_log_line_format_includes_function_name(tmp_path: Path):
     logger.detail("other_fn", "detail msg")
     text = log_path.read_text(encoding="utf-8")
     assert "[test_fn] [INFO ] hello" in text
-    assert "[other_fn] [DETAIL] detail msg" in text
+    assert "[other_fn] [DEBUG] detail msg" in text
 
 
 def test_generate_writes_log_file(tmp_path: Path):
@@ -40,6 +40,6 @@ def test_generate_writes_log_file(tmp_path: Path):
     logger.info("test_generate_writes_log_file", "done")
     text = log_path.read_text(encoding="utf-8")
     assert "[transform_sql] [INFO ]" in text
-    assert "[strip_sql_comments] [DETAIL]" in text
+    assert "[strip_sql_comments] [DEBUG]" in text
     assert "Stripping comments" in text or "Keeping original comments" in text
     assert "Stubbing" in text or "Injecting SET" in text

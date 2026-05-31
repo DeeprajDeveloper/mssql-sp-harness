@@ -15,7 +15,7 @@ def test_strip_sql_comments_emits_detail(tmp_path: Path):
     sql = "/* header */\nSELECT 1 -- tail\n\n"
     strip_sql_comments(sql, on_detail=logger.as_detail_callback())
     text = log_path.read_text(encoding="utf-8")
-    assert "[strip_sql_comments] [DETAIL]" in text
+    assert "[strip_sql_comments] [DEBUG]" in text
     assert "Comment strip:" in text
     assert "line 1" in text
     assert "header" in text
@@ -31,6 +31,6 @@ def test_generate_log_captures_comment_and_prepare_detail(tmp_path: Path):
         on_detail=logger.as_detail_callback(),
     )
     text = log_path.read_text(encoding="utf-8")
-    assert "[strip_sql_comments] [DETAIL]" in text
+    assert "[strip_sql_comments] [DEBUG]" in text
     assert "[prepare_for_transform]" in text or "[strip_deploy_preamble]" in text
     assert "[convert_create_procedure_to_declares]" in text or "[_inject_set_traces]" in text
