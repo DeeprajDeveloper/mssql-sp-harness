@@ -95,9 +95,57 @@
     });
   }
 
+  function initCodeTabs() {
+    var root = document.querySelector("[data-code-tabs]");
+    if (!root) {
+      return;
+    }
+    var tabs = root.querySelectorAll('[role="tab"]');
+    var panels = root.querySelectorAll("[data-tab-panel]");
+
+    function activate(tabId) {
+      tabs.forEach(function (tab) {
+        var selected = tab.getAttribute("data-tab") === tabId;
+        tab.setAttribute("aria-selected", selected ? "true" : "false");
+        tab.tabIndex = selected ? 0 : -1;
+      });
+      panels.forEach(function (panel) {
+        var active = panel.getAttribute("data-tab-panel") === tabId;
+        panel.toggleAttribute("hidden", !active);
+        panel.setAttribute("data-active", active ? "true" : "false");
+      });
+    }
+
+    tabs.forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        activate(tab.getAttribute("data-tab"));
+      });
+      tab.addEventListener("keydown", function (event) {
+        var ids = ["macos", "windows"];
+        var current = tab.getAttribute("data-tab");
+        var index = ids.indexOf(current);
+        if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+          event.preventDefault();
+          var next =
+            event.key === "ArrowRight"
+              ? ids[(index + 1) % ids.length]
+              : ids[(index - 1 + ids.length) % ids.length];
+          activate(next);
+          root.querySelector('[data-tab="' + next + '"]').focus();
+        }
+      });
+    });
+
+    var ua = navigator.userAgent || "";
+    if (/Win/i.test(ua) || /Windows/i.test(ua)) {
+      activate("windows");
+    }
+  }
+
   function boot() {
     initTheme();
     initSidebar();
+    initCodeTabs();
   }
 
   if (document.readyState === "loading") {

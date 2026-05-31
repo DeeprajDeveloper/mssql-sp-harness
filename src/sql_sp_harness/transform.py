@@ -27,6 +27,7 @@ from sql_sp_harness.comments import strip_sql_comments
 from sql_sp_harness.dml_preview import build_dml_preview
 from sql_sp_harness.parse import parse_for_transform, suppress_sqlglot_warnings
 from sql_sp_harness.script_prepare import prepare_for_transform
+from sql_sp_harness.run_log import LogCallback, emit_log, truncate_for_log
 from sql_sp_harness.t_sql_scan import find_dml_block_end
 
 
@@ -47,9 +48,16 @@ class TransformResult:
 ProgressCallback = Callable[[str], None]
 
 
-def _emit_progress(on_progress: ProgressCallback | None, message: str) -> None:
+def _emit_log(
+    *,
+    on_progress: ProgressCallback | None,
+    on_log_info: LogCallback | None,
+    function: str,
+    message: str,
+) -> None:
     if on_progress is not None:
-        on_progress(f"{message}")
+        on_progress(message)
+    emit_log(on_log_info, function, message)
 
 
 def _is_table_variable_dml(first_line: str) -> bool:
@@ -122,15 +130,27 @@ def _trace_line_for_var(var_name: str, indent: str, style: str) -> str:
     )
 
 
-def _inject_set_traces(text: str, trace_style: str) -> tuple[str, int]:
+def _inject_set_traces(
+    text: str,
+    trace_style: str,
+    *,
+    on_detail: LogCallback | None = None,
+) -> tuple[str, int]:
     count = 0
 
     def repl(match: re.Match[str]) -> str:
         nonlocal count
         var = match.group("var")
-        if "NOCOUNT" in match.group("stmt").upper():
+        stmt = match.group("stmt")
+        if "NOCOUNT" in stmt.upper():
+            emit_log(
+                on_detail,
+                "_inject_set_traces",
+                f"  SET trace skipped (NOCOUNT): {truncate_for_log(stmt)}",
+            )
             return match.group(0)
         if f"[DBG] {var}" in text[match.end() : match.end() + 120]:
+            emit_log(on_detail, "_inject_set_traces", f"  SET trace skipped (already traced): {var}")
             return match.group(0)
         indent = "    "
         if match.group("prefix"):
@@ -141,12 +161,23 @@ def _inject_set_traces(text: str, trace_style: str) -> tuple[str, int]:
                 indent = m.group(1) or indent
         trace = _trace_line_for_var(var, indent, trace_style)
         count += 1
+        emit_log(
+            on_detail,
+            "_inject_set_traces",
+            f"  SET trace added: {var} ({trace_style}) after {truncate_for_log(stmt)}",
+        )
+        emit_log(on_detail, "_inject_set_traces", f"    + {truncate_for_log(trace)}")
         return match.group(0) + "\n" + trace
 
     return INLINE_SET.sub(repl, text), count
 
 
-def _inject_select_traces(text: str, trace_style: str) -> tuple[str, int]:
+def _inject_select_traces(
+    text: str,
+    trace_style: str,
+    *,
+    on_detail: LogCallback | None = None,
+) -> tuple[str, int]:
     count = 0
 
     def repl(match: re.Match[str]) -> str:
@@ -160,6 +191,14 @@ def _inject_select_traces(text: str, trace_style: str) -> tuple[str, int]:
         indent = "    "
         traces = "\n".join(_trace_line_for_var(v, indent, trace_style) for v in vars_)
         count += len(vars_)
+        emit_log(
+            on_detail,
+            "_inject_select_traces",
+            f"  SELECT @assign trace(s) added: {', '.join(vars_)} ({trace_style}) "
+            f"after {truncate_for_log(stmt)}",
+        )
+        for trace_line in traces.splitlines():
+            emit_log(on_detail, "_inject_select_traces", f"    + {truncate_for_log(trace_line)}")
         return match.group(0) + "\n" + traces
 
     return SELECT_ASSIGN.sub(repl, text), count
@@ -200,15 +239,19 @@ def _apply_line_edits(
     stub_dml: bool,
     add_block_markers: bool,
     on_progress: ProgressCallback | None = None,
+    on_log_info: LogCallback | None = None,
+    on_detail: LogCallback | None = None,
 ) -> tuple[list[str], TransformStats]:
     stats = TransformStats()
 
     if stub_dml:
         blocks = _find_dml_line_blocks(lines)
         if blocks:
-            _emit_progress(
-                on_progress,
-                f"Stubbing {len(blocks)} DML block(s) (INSERT/UPDATE/DELETE/MERGE)...",
+            _emit_log(
+                on_progress=on_progress,
+                on_log_info=on_log_info,
+                function="_apply_line_edits",
+                message=f"Stubbing {len(blocks)} DML block(s) (INSERT/UPDATE/DELETE/MERGE)...",
             )
         for start, end in reversed(blocks):
             block = lines[start : end + 1]
@@ -216,28 +259,69 @@ def _apply_line_edits(
             indent = indent_match.group(1) if indent_match else ""
             kind = block[0].strip().split()[0].upper()
             preview = " ".join(block[0].strip().split())[:100]
-            _emit_progress(
-                on_progress,
-                f"Stubbing {kind} lines {start + 1}-{end + 1}: {preview}",
+            _emit_log(
+                on_progress=on_progress,
+                on_log_info=on_log_info,
+                function="_apply_line_edits",
+                message=f"Stubbing {kind} lines {start + 1}-{end + 1}: {preview}",
             )
             replacement = _replace_dml_block(block, indent)
             preview_kind = "SELECT preview" if replacement and "[DBG-PREVIEW]" in replacement[0] else "disabled stub"
-            _emit_progress(on_progress, f"  -> {preview_kind} ({len(replacement)} line(s))")
+            _emit_log(
+                on_progress=on_progress,
+                on_log_info=on_log_info,
+                function="_apply_line_edits",
+                message=f"  -> {preview_kind} ({len(replacement)} line(s))",
+            )
+            emit_log(on_detail, "_apply_line_edits", f"  DML replacement ({preview_kind}):")
+            for repl_line in replacement[:12]:
+                emit_log(on_detail, "_apply_line_edits", f"    + {truncate_for_log(repl_line)}")
+            if len(replacement) > 12:
+                emit_log(
+                    on_detail,
+                    "_apply_line_edits",
+                    f"    ... {len(replacement) - 12} more line(s)",
+                )
             lines[start : end + 1] = replacement
             stats.dml_stubbed += 1
 
-    _emit_progress(on_progress, "Injecting SET variable traces...")
+    _emit_log(
+        on_progress=on_progress,
+        on_log_info=on_log_info,
+        function="_apply_line_edits",
+        message="Injecting SET variable traces...",
+    )
     text = "\n".join(lines)
-    text, set_traces = _inject_set_traces(text, trace_style)
-    _emit_progress(on_progress, f"  -> added {set_traces} SET trace(s) (style={trace_style})")
-    _emit_progress(on_progress, "Injecting SELECT assignment traces...")
-    text, select_traces = _inject_select_traces(text, trace_style)
-    _emit_progress(on_progress, f"  -> added {select_traces} SELECT @assign trace(s)")
+    text, set_traces = _inject_set_traces(text, trace_style, on_detail=on_detail)
+    _emit_log(
+        on_progress=on_progress,
+        on_log_info=on_log_info,
+        function="_apply_line_edits",
+        message=f"  -> added {set_traces} SET trace(s) (style={trace_style})",
+    )
+    _emit_log(
+        on_progress=on_progress,
+        on_log_info=on_log_info,
+        function="_apply_line_edits",
+        message="Injecting SELECT assignment traces...",
+    )
+    text, select_traces = _inject_select_traces(text, trace_style, on_detail=on_detail)
+    _emit_log(
+        on_progress=on_progress,
+        on_log_info=on_log_info,
+        function="_apply_line_edits",
+        message=f"  -> added {select_traces} SELECT @assign trace(s)",
+    )
     stats.traces_added += set_traces + select_traces
     lines = text.splitlines()
 
     if add_block_markers:
-        _emit_progress(on_progress, "Adding IF/WHILE block markers...")
+        _emit_log(
+            on_progress=on_progress,
+            on_log_info=on_log_info,
+            function="_apply_line_edits",
+            message="Adding IF/WHILE block markers...",
+        )
         step = 0
         markers: list[tuple[int, str]] = []
         for idx, line in enumerate(lines):
@@ -248,6 +332,11 @@ def _apply_line_edits(
                 marker = f"{indent}-- [DBG] Step {step}: {line.strip()[:80]}"
                 markers.append((idx, marker))
                 stats.warnings.append(f"Block marker at step {step}")
+                emit_log(
+                    on_detail,
+                    "_apply_line_edits",
+                    f"  block marker step {step} before line {idx + 1}: {truncate_for_log(line)}",
+                )
         for offset, (idx, marker) in enumerate(markers):
             lines.insert(idx + offset, marker)
 
@@ -262,32 +351,78 @@ def transform_sql(
     add_block_markers: bool = False,
     strip_comments: bool = True,
     on_progress: ProgressCallback | None = None,
+    on_log_info: LogCallback | None = None,
+    on_detail: LogCallback | None = None,
 ) -> TransformResult:
     """Produce a debug harness script from T-SQL source."""
     if strip_comments:
-        _emit_progress(on_progress, "Stripping comments from source...")
-        sql = strip_sql_comments(sql)
+        _emit_log(
+            on_progress=on_progress,
+            on_log_info=on_log_info,
+            function="transform_sql",
+            message="Stripping comments from source...",
+        )
+        sql = strip_sql_comments(sql, on_detail=on_detail)
     else:
-        _emit_progress(on_progress, "Keeping original comments (--keep-comments)")
+        _emit_log(
+            on_progress=on_progress,
+            on_log_info=on_log_info,
+            function="transform_sql",
+            message="Keeping original comments (--keep-comments)",
+        )
+        emit_log(on_detail, "transform_sql", "Comment strip skipped (--keep-comments)")
 
-    _emit_progress(on_progress, "Preparing script (remove deploy preamble, inline parameters)...")
-    sql = prepare_for_transform(sql)
+    _emit_log(
+        on_progress=on_progress,
+        on_log_info=on_log_info,
+        function="transform_sql",
+        message="Preparing script (remove deploy preamble, inline parameters)...",
+    )
+    sql = prepare_for_transform(sql, on_detail=on_detail)
 
     line_count = len(sql.splitlines())
-    _emit_progress(on_progress, f"Transform started ({line_count} lines)...")
+    _emit_log(
+        on_progress=on_progress,
+        on_log_info=on_log_info,
+        function="transform_sql",
+        message=f"Transform started ({line_count} lines)...",
+    )
+    emit_log(
+        on_detail,
+        "transform_sql",
+        f"Prepared source: {line_count} line(s), {len(sql)} character(s)",
+    )
 
-    _emit_progress(on_progress, "Preparing source (strip GO, scan constructs)...")
-    parsed = parse_for_transform(sql, strip_preamble=False)
+    _emit_log(
+        on_progress=on_progress,
+        on_log_info=on_log_info,
+        function="transform_sql",
+        message="Preparing source (strip GO, scan constructs)...",
+    )
+    parsed = parse_for_transform(sql, strip_preamble=False, on_detail=on_detail)
     stats = TransformStats(warnings=list(parsed.warnings))
     scan = parsed.scan
     if scan is not None:
-        _emit_progress(
-            on_progress,
-            f"Text scan: INSERT={scan.insert} UPDATE={scan.update} DELETE={scan.delete} "
-            f"MERGE={scan.merge} TRY/CATCH={scan.try_catch_blocks}",
+        _emit_log(
+            on_progress=on_progress,
+            on_log_info=on_log_info,
+            function="parse_for_transform",
+            message=(
+                f"Text scan: INSERT={scan.insert} UPDATE={scan.update} DELETE={scan.delete} "
+                f"MERGE={scan.merge} TRY/CATCH={scan.try_catch_blocks}"
+            ),
         )
     for warning in parsed.warnings:
-        _emit_progress(on_progress, f"Warning: {warning}")
+        _emit_log(
+            on_progress=on_progress,
+            on_log_info=on_log_info,
+            function="parse_for_transform",
+            message=f"Warning: {warning}",
+        )
+        emit_log(on_detail, "parse_for_transform", f"Parse warning: {warning}")
+
+    if not stub_dml:
+        emit_log(on_detail, "transform_sql", "DML stubbing disabled (--no-stub-dml)")
 
     lines, line_stats = _apply_line_edits(
         parsed.source.splitlines(),
@@ -295,6 +430,8 @@ def transform_sql(
         stub_dml=stub_dml,
         add_block_markers=add_block_markers,
         on_progress=on_progress,
+        on_log_info=on_log_info,
+        on_detail=on_detail,
     )
     stats.dml_stubbed = line_stats.dml_stubbed
     stats.traces_added = line_stats.traces_added
@@ -302,15 +439,24 @@ def transform_sql(
 
     from sql_sp_harness.emit import debug_banner
 
-    _emit_progress(on_progress, "Writing debug harness banner...")
+    _emit_log(
+        on_progress=on_progress,
+        on_log_info=on_log_info,
+        function="transform_sql",
+        message="Writing debug harness banner...",
+    )
     body = "\n".join(lines)
     if not body.endswith("\n") and sql.endswith("\n"):
         body += "\n"
     output = debug_banner([], stats) + body
 
-    _emit_progress(
-        on_progress,
-        f"Transform complete: {stats.dml_stubbed} DML stubbed, "
-        f"{stats.traces_added} trace(s) added.",
+    _emit_log(
+        on_progress=on_progress,
+        on_log_info=on_log_info,
+        function="transform_sql",
+        message=(
+            f"Transform complete: {stats.dml_stubbed} DML stubbed, "
+            f"{stats.traces_added} trace(s) added."
+        ),
     )
     return TransformResult(sql=output, stats=stats, parse_errors=list(parsed.errors))

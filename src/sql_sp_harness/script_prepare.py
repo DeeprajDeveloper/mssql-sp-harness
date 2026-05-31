@@ -17,6 +17,7 @@ from sql_sp_harness.constants import (
     SET_QUOTED_IDENTIFIER,
     STANDALONE_DROP_PROC,
 )
+from sql_sp_harness.run_log import LogCallback, emit_log, truncate_for_log
 
 
 def _split_param_list(text: str) -> list[str]:
@@ -42,30 +43,70 @@ def _split_param_list(text: str) -> list[str]:
     return parts
 
 
-def strip_deploy_preamble(sql: str) -> str:
+def strip_deploy_preamble(sql: str, *, on_detail: LogCallback | None = None) -> str:
     """Remove IF EXISTS/DROP PROCEDURE and SET ANSI_NULLS / QUOTED_IDENTIFIER setup."""
     had_trailing_newline = sql.endswith("\n")
     lines = sql.splitlines()
     kept: list[str] = []
+    removed = 0
     i = 0
     while i < len(lines):
         line = lines[i]
+        line_no = i + 1
         if IF_EXISTS.match(line):
+            emit_log(
+                on_detail,
+                "strip_deploy_preamble",
+                f"  preamble line {line_no}: removed IF EXISTS block: {truncate_for_log(line)}",
+            )
             i += 1
             while i < len(lines):
                 if DROP_PROCEDURE.search(lines[i]):
+                    emit_log(
+                        on_detail,
+                        "strip_deploy_preamble",
+                        f"  preamble line {i + 1}: removed DROP PROCEDURE: "
+                        f"{truncate_for_log(lines[i])}",
+                    )
                     i += 1
+                    removed += 1
                     break
+                emit_log(
+                    on_detail,
+                    "strip_deploy_preamble",
+                    f"  preamble line {i + 1}: removed (IF EXISTS tail): "
+                    f"{truncate_for_log(lines[i])}",
+                )
                 i += 1
+                removed += 1
+            removed += 1
             continue
         if STANDALONE_DROP_PROC.match(line):
+            emit_log(
+                on_detail,
+                "strip_deploy_preamble",
+                f"  preamble line {line_no}: removed standalone DROP PROCEDURE: "
+                f"{truncate_for_log(line)}",
+            )
             i += 1
+            removed += 1
             continue
         if SET_ANSI_NULLS.match(line) or SET_QUOTED_IDENTIFIER.match(line):
+            emit_log(
+                on_detail,
+                "strip_deploy_preamble",
+                f"  preamble line {line_no}: removed SET option: {truncate_for_log(line)}",
+            )
             i += 1
+            removed += 1
             continue
         kept.append(line)
         i += 1
+    emit_log(
+        on_detail,
+        "strip_deploy_preamble",
+        f"Deploy preamble: removed {removed} line(s), kept {len(kept)} line(s)",
+    )
     if not kept:
         return "\n" if had_trailing_newline else ""
     body = "\n".join(kept)
@@ -122,11 +163,16 @@ def _split_create_tail(tail: str) -> tuple[str, bool]:
     return param_text, has_begin
 
 
-def convert_create_procedure_to_declares(sql: str) -> str:
+def convert_create_procedure_to_declares(
+    sql: str,
+    *,
+    on_detail: LogCallback | None = None,
+) -> str:
     """Replace CREATE PROCEDURE header with DECLARE parameters (debug script, no CREATE)."""
     lines = sql.splitlines()
     out: list[str] = []
     i = 0
+    conversions = 0
     while i < len(lines):
         line = lines[i]
         head = CREATE_PROC.match(line)
@@ -136,6 +182,7 @@ def convert_create_procedure_to_declares(sql: str) -> str:
             continue
 
         proc_name = head.group(1)
+        line_no = i + 1
         indent_match = re.match(r"^(\s*)", line)
         indent = indent_match.group(1) if indent_match else ""
 
@@ -169,7 +216,21 @@ def convert_create_procedure_to_declares(sql: str) -> str:
             param_chunks = _split_param_list(" ".join(param_parts))
 
         params = _parse_parameter_chunks(param_chunks)
-        out.extend(_declare_lines_for_params(proc_name, params, indent))
+        declare_lines = _declare_lines_for_params(proc_name, params, indent)
+        emit_log(
+            on_detail,
+            "convert_create_procedure_to_declares",
+            f"  line {line_no}: CREATE PROCEDURE {proc_name} -> "
+            f"{len(params)} parameter DECLARE(s), as_begin={as_has_begin}",
+        )
+        for decl in declare_lines:
+            emit_log(
+                on_detail,
+                "convert_create_procedure_to_declares",
+                f"    + {truncate_for_log(decl)}",
+            )
+        out.extend(declare_lines)
+        conversions += 1
 
         if as_has_begin:
             out.append(f"{indent}BEGIN")
@@ -180,12 +241,27 @@ def convert_create_procedure_to_declares(sql: str) -> str:
             i += 1
         continue
 
+    emit_log(
+        on_detail,
+        "convert_create_procedure_to_declares",
+        f"CREATE PROC conversion: {conversions} procedure header(s) inlined",
+    )
     return "\n".join(out)
 
 
-def prepare_for_analysis(sql: str, *, strip_preamble: bool = True) -> str:
+def prepare_for_analysis(
+    sql: str,
+    *,
+    strip_preamble: bool = True,
+    on_detail: LogCallback | None = None,
+) -> str:
     if strip_preamble:
-        sql = strip_deploy_preamble(sql)
+        emit_log(
+            on_detail,
+            "prepare_for_analysis",
+            "stripping deploy preamble",
+        )
+        sql = strip_deploy_preamble(sql, on_detail=on_detail)
     return sql
 
 
@@ -194,9 +270,16 @@ def prepare_for_transform(
     *,
     strip_preamble: bool = True,
     inline_proc_params: bool = True,
+    on_detail: LogCallback | None = None,
 ) -> str:
     if strip_preamble:
-        sql = strip_deploy_preamble(sql)
+        emit_log(on_detail, "prepare_for_transform", "stripping deploy preamble")
+        sql = strip_deploy_preamble(sql, on_detail=on_detail)
     if inline_proc_params:
-        sql = convert_create_procedure_to_declares(sql)
+        emit_log(
+            on_detail,
+            "prepare_for_transform",
+            "converting CREATE PROCEDURE to DECLARE",
+        )
+        sql = convert_create_procedure_to_declares(sql, on_detail=on_detail)
     return sql

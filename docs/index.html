@@ -8,6 +8,7 @@
 			content="sql-sp-harness turns SQL Server stored procedures into safe debug scripts with DML previews and variable traces."
 		/>
 		<title>sql-sp-harness — T-SQL Stored Procedure Debug Harness</title>
+		<link rel="icon" type="image/png" href="./images/logo.png" />
 		<script>
 			(function () {
 				var key = "sql-sp-harness-theme";
@@ -27,7 +28,7 @@
 		<div class="layout">
 			<aside class="sidebar" id="sidebar">
 				<a class="brand" href="#">
-					<img src="./logo.png" alt="sql-sp-harness" height="32" />
+					<img src="./images/logo.png" alt="sql-sp-harness" height="32" />
 					<span class="brand-text">sql-sp-harness</span>
 				</a>
 				<div class="divider"></div>
@@ -350,18 +351,89 @@
 						<div class="container">
 							<h2>Install &amp; Quick Start</h2>
 							<p class="section-intro">Requires <code style="font-size: 0.8rem;">Python 3.10+</code> or newer.</p>
-							<pre><code># Step 1: Install the package
-pip install sql-sp-harness
+							<div class="code-tabs" data-code-tabs>
+								<div class="code-tabs__list" role="tablist" aria-label="Install commands by platform">
+									<button
+										type="button"
+										class="code-tabs__tab"
+										role="tab"
+										id="tab-macos"
+										aria-selected="true"
+										aria-controls="panel-macos"
+										data-tab="macos"
+									>
+										macOS
+									</button>
+									<button
+										type="button"
+										class="code-tabs__tab"
+										role="tab"
+										id="tab-windows"
+										aria-selected="false"
+										aria-controls="panel-windows"
+										data-tab="windows"
+										tabindex="-1"
+									>
+										Windows
+									</button>
+								</div>
+								<div
+									class="code-tabs__panel"
+									role="tabpanel"
+									id="panel-macos"
+									aria-labelledby="tab-macos"
+									data-tab-panel="macos"
+									data-active="true"
+								>
+<pre><code># Step 1: Install the package using pip
+pip install sql-sp-harness (or) pip3 install sql-sp-harness
+-----------------------------------------------------------
+# Step 2: Verify (console script — hyphens)
+sql_sp_harness version
+# Module (underscores; works without Scripts on PATH):
+python3 -m sql_sp_harness version
+-----------------------------------------------------------
+# Step 3: Analyze / generate
+sql_sp_harness analyze -i MyProc.sql
+sql_sp_harness generate -i MyProc.sql -o MyProc_debug.sql
+-----------------------------------------------------------
+# Or via module:
+python3 -m sql_sp_harness analyze -i MyProc.sql
+python3 -m sql_sp_harness generate -i MyProc.sql -o MyProc_debug.sql
 
-# Step 2: Verify the installation
+# Optional: step log beside input
+sql_sp_harness generate -i MyProc.sql -o MyProc_debug.sql --log
+python3 -m sql_sp_harness generate -i MyProc.sql -o MyProc_debug.sql --log</code></pre>
+								</div>
+								<div
+									class="code-tabs__panel"
+									role="tabpanel"
+									id="panel-windows"
+									aria-labelledby="tab-windows"
+									data-tab-panel="windows"
+									hidden
+								>
+									<pre><code># Step 1: Install the package
+py -m pip install sql-sp-harness
+
+# Step 2: Verify (console script — hyphens)
 sql-sp-harness version
+# Module (underscores; use when sql-sp-harness is not on PATH):
+py -m sql_sp_harness version
 
-# Step 3: Analyze / generate the procedure
+# Step 3: Analyze / generate
 sql-sp-harness analyze -i MyProc.sql
 sql-sp-harness generate -i MyProc.sql -o MyProc_debug.sql
 
+# Or via module:
+py -m sql_sp_harness analyze -i MyProc.sql
+py -m sql_sp_harness generate -i MyProc.sql -o MyProc_debug.sql
+
 # Optional: step log beside input
-sql-sp-harness generate -i MyProc.sql -o MyProc_debug.sql --log</code></pre>
+sql-sp-harness generate -i MyProc.sql -o MyProc_debug.sql --log
+py -m sql_sp_harness generate -i MyProc.sql -o MyProc_debug.sql --log</code></pre>
+								</div>
+							</div>
 							<p
 								style="
 									margin-top: 1rem;
@@ -369,8 +441,10 @@ sql-sp-harness generate -i MyProc.sql -o MyProc_debug.sql --log</code></pre>
 									font-size: 0.8rem;
 								"
 							>
-								Module invocation:
-								<code>python -m sql_sp_harness analyze -i MyProc.sql</code>
+								Console: <code>sql-sp-harness</code> · Module: <code>sql_sp_harness</code>.
+								Windows: add
+								<code>%LocalAppData%\Programs\Python\Python3x\Scripts</code> to PATH if the
+								console command is not found.
 							</p>
 						</div>
 					</section>

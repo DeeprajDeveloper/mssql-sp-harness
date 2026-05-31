@@ -20,6 +20,7 @@ from sql_sp_harness.constants import (
 )
 from sql_sp_harness.console import failure, heading, success, warning
 from sql_sp_harness.parse import ParseResult, first_tree, parse_sql, scan_has_structure
+from sql_sp_harness.run_log import LogCallback
 from sql_sp_harness.t_sql_scan import TsqlScanResult, scan_tsql
 
 COUNT_SECTIONS: tuple[tuple[str, str], ...] = (
@@ -460,8 +461,12 @@ def _apply_scan(report: InventoryReport, scan: TsqlScanResult) -> None:
     report.merge = _merge_dml_count(report.merge, scan.merge)
 
 
-def inventory_from_sql(sql: str) -> InventoryReport:
-    result = parse_sql(sql)
+def inventory_from_sql(
+    sql: str,
+    *,
+    on_detail: LogCallback | None = None,
+) -> InventoryReport:
+    result = parse_sql(sql, on_detail=on_detail)
     return inventory_from_parse(result)
 
 

@@ -18,6 +18,7 @@ from sql_sp_harness.transform import transform_sql
 
 
 def package_version() -> str:
+    """Get the version of the package."""
     try:
         from importlib.metadata import version
 
@@ -27,6 +28,7 @@ def package_version() -> str:
 
 
 def _timestamp() -> str:
+    """Get the current timestamp."""
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
@@ -41,25 +43,28 @@ def read_input(
     if path is None or str(path) == "-":
         if logger:
             enc = encoding or "system default"
-            logger.info(f"Reading SQL from stdin (encoding={enc})")
+            logger.info("read_input", f"Reading SQL from stdin (encoding={enc})")
         if encoding:
             text, _ = read_sql_bytes(sys.stdin.buffer.read(), encoding)
         else:
             text = sys.stdin.read()
     else:
         if logger:
-            logger.info(f"Reading input file: {path.resolve()}")
+            logger.info("read_input", f"Reading input file: {path.resolve()}")
             if encoding:
-                logger.info(f"Using forced encoding: {encoding}")
+                logger.info("read_input", f"Using forced encoding: {encoding}")
         text, detected = read_sql_file(path, encoding)
         if detected:
             msg = f"Input decoded as {detected} (common for SSMS Unicode exports)"
             if logger:
-                logger.info(msg)
+                logger.info("read_input", msg)
             elif not quiet:
                 typer.echo(f"[{_timestamp()}] {msg}", err=True)
     if logger:
-        logger.info(f"Read {len(text)} character(s) | {len(text.splitlines())} line(s)")
+        logger.info(
+            "read_input",
+            f"Read {len(text)} character(s) | {len(text.splitlines())} line(s)",
+        )
     return text
 
 
@@ -86,46 +91,55 @@ def run_analyze(
     success = True
     try:
         if logger:
-            logger.info("Command: analyze")
-            logger.info(f"Input file: {input}")
+            logger.info("run_analyze", "Command: analyze")
+            logger.info("run_analyze", f"Input file: {input}")
             if report:
-                logger.info(f"Report file: {report.resolve()}")
+                logger.info("run_analyze", f"Report file: {report.resolve()}")
         sql = read_input(input, encoding, logger=logger)
         if logger:
-            logger.info("Running inventory analysis (AST + text scan)")
-        inv = inventory_from_sql(sql)
+            logger.info("run_analyze", "Running inventory analysis (AST + text scan)")
+        inv = inventory_from_sql(
+            sql,
+            on_detail=logger.as_detail_callback() if logger else None,
+        )
         if logger:
-            logger.info(f"Is File Parsable: {inv.is_parsable}")
+            logger.info("run_analyze", f"Is File Parsable: {inv.is_parsable}")
+            logger.detail("run_analyze", "-----------------------------------------------------------")
             logger.detail(
+                "run_analyze",
                 f"Counts: INSERT={inv.insert} | UPDATE={inv.update} | DELETE={inv.delete} | "
                 f"MERGE={inv.merge} | TRY/CATCH={inv.try_catch_blocks}| "
                 f"IF={inv.if_count} | WHILE={inv.while_count} | "
                 f"SET(@)={inv.set_variable} | SELECT@={inv.select_assign} | "
-                f"Command fragments (partial)={inv.command_fragments}"
+                f"Command fragments (partial)={inv.command_fragments}",
             )
+            logger.detail("run_analyze", "-----------------------------------------------------------")
             for err in inv.errors:
-                logger.error(err)
+                logger.error("run_analyze", err)
             for warn in inv.warnings:
-                logger.warning(warn)
+                logger.warning("run_analyze", warn)
             for kind, items in inv.details.items():
-                logger.detail(f"{kind}: {len(items)} statement(s)")
+                logger.detail("inventory_from_parse", f"{kind}: {len(items)} statement(s)")
                 for item in items[:20]:
-                    logger.detail(f"  {item}")
+                    logger.detail("inventory_from_parse", f"  {item}")
                 if len(items) > 20:
-                    logger.detail(f"  ... and {len(items) - 20} more")
+                    logger.detail(
+                        "inventory_from_parse",
+                        f"  ... and {len(items) - 20} more",
+                    )
         colorize = supports_color() and not plain and report is None
         text = inv.to_text(colorize=colorize, non_zero_only=not full)
         if report:
             report.write_text(text + "\n", encoding="utf-8")
             if logger:
-                logger.info(f"Wrote analysis report to {report.resolve()}")
+                logger.info("run_analyze", f"Wrote analysis report to {report.resolve()}")
             typer.echo(f"[{_timestamp()}] Report written to {report}")
         else:
             typer.echo(f"[{_timestamp()}] {text}")
     except Exception as exc:
         success = False
         if logger:
-            logger.error(str(exc))
+            logger.error("run_analyze", str(exc))
         raise
     finally:
         if logger:
@@ -158,22 +172,24 @@ def run_generate(
     success = True
     try:
         if logger:
-            logger.info("Command: generate")
-            logger.info(f"Input: {input}")
+            logger.info("run_generate", "Command: generate")
+            logger.info("run_generate", f"Input: {input}")
+            logger.detail("run_generate", "-----------------------------------------------------------")
             logger.info(
+                "run_generate",
                 f"trace_style={trace_style} | stub_dml={not no_stub_dml} | "
-                f"block_markers={block_markers} | strip_comments={not keep_comments}"
+                f"block_markers={block_markers} | strip_comments={not keep_comments}",
             )
+            logger.detail("run_generate", "-----------------------------------------------------------")
 
         sql = read_input(input, encoding, quiet=quiet, logger=logger)
 
         stderr_progress = None if quiet else lambda msg: typer.echo(
             f"[{_timestamp()}] {msg}", err=True
         )
-        progress = combine_progress(
-            logger.as_progress_callback() if logger else None,
-            stderr_progress,
-        )
+        progress = combine_progress(stderr_progress)
+        on_log_info = logger.as_info_callback() if logger else None
+        on_detail = logger.as_detail_callback() if logger else None
 
         result = transform_sql(
             sql,
@@ -182,6 +198,8 @@ def run_generate(
             add_block_markers=block_markers,
             strip_comments=not keep_comments,
             on_progress=progress,
+            on_log_info=on_log_info,
+            on_detail=on_detail,
         )
 
         out_path = output
@@ -189,21 +207,24 @@ def run_generate(
             out_path = input.with_name(f"{input.stem}_debug{input.suffix}")
 
         if logger:
-            logger.info(f"Writing harness SQL to {out_path}")
+            logger.info("run_generate", f"Writing harness SQL to {out_path}")
         write_output(out_path, result.sql)
         if logger:
             out_lines = len(result.sql.splitlines())
-            logger.info(f"Wrote {out_lines} line(s) to output")
+            logger.info("run_generate", f"Wrote {out_lines} line(s) to output")
+            logger.detail("run_generate", "-----------------------------------------------------------")
             logger.detail(
+                "run_generate",
                 f"Summary: DML stubbed={result.stats.dml_stubbed} | "
                 f"Traces added={result.stats.traces_added} | "
                 f"Warnings={len(result.stats.warnings)} | "
-                f"Parse errors={len(result.parse_errors)}"
+                f"Parse errors={len(result.parse_errors)}",
             )
+            logger.detail("run_generate", "-----------------------------------------------------------")
             for warn in result.stats.warnings:
-                logger.warning(warn)
+                logger.warning("transform_sql", warn)
             for err in result.parse_errors:
-                logger.error(err)
+                logger.error("transform_sql", err)
 
         summary = (
             f"Done: {result.stats.dml_stubbed} DML stubbed | "
@@ -228,7 +249,7 @@ def run_generate(
     except Exception as exc:
         success = False
         if logger:
-            logger.error(str(exc))
+            logger.error("run_generate", str(exc))
         raise
     finally:
         if logger:

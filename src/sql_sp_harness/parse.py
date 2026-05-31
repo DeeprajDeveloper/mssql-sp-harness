@@ -12,6 +12,7 @@ from sqlglot import exp
 from sqlglot.errors import ParseError
 
 from sql_sp_harness.constants import GO_PATTERN
+from sql_sp_harness.run_log import LogCallback, emit_log, truncate_for_log
 from sql_sp_harness.script_prepare import prepare_for_analysis
 from sql_sp_harness.t_sql_scan import TsqlScanResult, scan_tsql
 
@@ -52,13 +53,21 @@ def suppress_sqlglot_warnings():
         SQLGLOT_LOGGER.setLevel(previous)
 
 
-def strip_go_batches(sql: str) -> str:
+def strip_go_batches(sql: str, *, on_detail: LogCallback | None = None) -> str:
     """Remove GO batch separators (not valid T-SQL for sqlglot)."""
     lines = []
-    for line in sql.splitlines():
+    removed = 0
+    for line_no, line in enumerate(sql.splitlines(), start=1):
         if GO_PATTERN.match(line.strip()):
+            emit_log(
+                on_detail,
+                "strip_go_batches",
+                f"  line {line_no}: removed GO batch separator: {truncate_for_log(line)}",
+            )
+            removed += 1
             continue
         lines.append(line)
+    emit_log(on_detail, "strip_go_batches", f"GO strip: removed {removed} separator line(s)")
     return "\n".join(lines)
 
 
@@ -80,11 +89,17 @@ def first_tree(result: ParseResult) -> exp.Expression | None:
     return None
 
 
-def parse_sql(sql: str, *, strip_preamble: bool = True) -> ParseResult:
+def parse_sql(
+    sql: str,
+    *,
+    strip_preamble: bool = True,
+    on_detail: LogCallback | None = None,
+) -> ParseResult:
     """Parse T-SQL; collect trees and non-fatal warnings."""
     if strip_preamble:
-        sql = prepare_for_analysis(sql)
-    cleaned = strip_go_batches(sql)
+        emit_log(on_detail, "parse_sql", "preparing source for analysis")
+        sql = prepare_for_analysis(sql, on_detail=on_detail)
+    cleaned = strip_go_batches(sql, on_detail=on_detail)
     warnings: list[str] = []
     errors: list[str] = []
     trees: list[exp.Expression] = []
@@ -123,15 +138,24 @@ def parse_sql(sql: str, *, strip_preamble: bool = True) -> ParseResult:
     return ParseResult(source=cleaned, trees=trees, errors=errors, warnings=warnings, scan=scan)
 
 
-def parse_for_transform(sql: str, *, strip_preamble: bool = True) -> ParseResult:
+def parse_for_transform(
+    sql: str,
+    *,
+    strip_preamble: bool = True,
+    on_detail: LogCallback | None = None,
+) -> ParseResult:
     """Fast parse for transform: strip GO + text scan only (no sqlglot AST).
 
     Transform uses line-based rewriting, so a full AST parse is unnecessary and
     can be very slow on large enterprise procedures.
     """
     if strip_preamble:
-        sql = prepare_for_analysis(sql)
-    cleaned = strip_go_batches(sql)
+        emit_log(
+            on_detail,
+            "parse_for_transform",
+            "preamble already stripped by caller",
+        )
+    cleaned = strip_go_batches(sql, on_detail=on_detail)
     scan = scan_tsql(cleaned)
     warnings: list[str] = list(scan.notes)
     if scan.try_catch_blocks:
